@@ -4,6 +4,7 @@ export interface RegistroUsuarioDTO {
   email: string;
   password?: string; // Opcional si se usa OAuth en el futuro
   nombre: string;
+  apellidos: string;
   rol: 'profesor' | 'alumno';
 }
 
@@ -30,6 +31,7 @@ export class AuthService {
           id: userId, // Mismo ID de auth.users (Clave compartida)
           correo: datos.email,
           nombre: datos.nombre,
+          apellidos: datos.apellidos,
           rol: datos.rol
         }
       ])
