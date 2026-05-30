@@ -8,6 +8,11 @@ export interface RegistroUsuarioDTO {
   rol: 'profesor' | 'alumno';
 }
 
+export interface LoginUsuarioDTO {
+  email: string;
+  password?: string;
+}
+
 export class AuthService {
   static async registrarUsuario(datos: RegistroUsuarioDTO) {
     // 1. Crear el usuario en auth.users (Autenticación de Supabase)
@@ -47,5 +52,37 @@ export class AuthService {
     }
 
     return usuarioData;
+  }
+
+  static async loginUsuario(datos: LoginUsuarioDTO) {
+    // 1. Verificamos las credenciales con Supabase Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+      email: datos.email,
+      password: datos.password as string,
+    });
+
+    // Si la contraseña está mal o el usuario no existe, Supabase devuelve un error
+    if (authError) {
+      throw new Error(`Credenciales incorrectas: ${authError.message}`);
+    }
+
+    const userId = authData.user.id;
+
+    // 2. Obtenemos el perfil completo de nuestra tabla pública
+    const { data: perfilData, error: perfilError } = await supabaseAdmin
+      .from('usuarios')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (perfilError) {
+      throw new Error(`Error al obtener los datos del perfil: ${perfilError.message}`);
+    }
+
+    // 3. Devolvemos la sesión (el token JWT) y el perfil fusionados
+    return {
+      token: authData.session.access_token,
+      usuario: perfilData
+    };
   }
 }
