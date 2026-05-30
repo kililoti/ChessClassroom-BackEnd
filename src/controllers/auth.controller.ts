@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { AuthService, RegistroUsuarioDTO } from '../services/auth.service';
+import { AuthService, RegistroUsuarioDTO, LoginUsuarioDTO } from '../services/auth.service';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
@@ -37,6 +37,39 @@ export class AuthController {
       res.status(500).json({
         success: false,
         message: error.message || 'Error interno del servidor'
+      });
+    }
+  }
+
+  static async login(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, password } = req.body as LoginUsuarioDTO;
+
+      // 1. Validación básica
+      if (!email || !password) {
+        res.status(400).json({ 
+          success: false, 
+          message: 'Faltan campos obligatorios (email y password)' 
+        });
+        return;
+      }
+
+      // 2. Llamada al servicio
+      const datosLogin = await AuthService.loginUsuario({ email, password });
+
+      // 3. Respuesta exitosa (Código 200 OK)
+      res.status(200).json({
+        success: true,
+        message: 'Inicio de sesión exitoso',
+        data: datosLogin // Incluye el token y el perfil
+      });
+
+    } catch (error: any) {
+      console.error('Error en AuthController.login:', error);
+      // Código 401 (Unauthorized) cuando fallan las credenciales
+      res.status(401).json({
+        success: false,
+        message: error.message || 'Error al iniciar sesión'
       });
     }
   }
