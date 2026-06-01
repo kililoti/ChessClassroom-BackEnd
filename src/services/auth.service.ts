@@ -1,17 +1,5 @@
 import { supabaseAdmin } from '../config/supabase';
-
-export interface RegistroUsuarioDTO {
-  email: string;
-  password?: string; // Opcional si se usa OAuth en el futuro
-  nombre: string;
-  apellidos: string;
-  rol: 'profesor' | 'alumno';
-}
-
-export interface LoginUsuarioDTO {
-  email: string;
-  password?: string;
-}
+import { RegistroUsuarioDTO, LoginUsuarioDTO } from '../types/index';
 
 export class AuthService {
   static async registrarUsuario(datos: RegistroUsuarioDTO) {

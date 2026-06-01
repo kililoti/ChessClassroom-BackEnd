@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { AuthService, RegistroUsuarioDTO, LoginUsuarioDTO } from '../services/auth.service';
+import { AuthService } from '../services/auth.service';
+import { RegistroUsuarioDTO, LoginUsuarioDTO } from '../types/index';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
