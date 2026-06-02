@@ -1,0 +1,137 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Usar la service_role_key para operar como administradores desde el backend
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+export class ClaseService {
+  
+  // Crear una clase y asignar automáticamente al creador como profesor
+  static async crearClase(profesorId: string, nombre: string, descripcion: string, tipo: 'grupal' | 'particular') {
+    
+    // Verificación de rol
+    const { data: usuario, error: errorUsuario } = await supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('id', profesorId)
+      .single();
+
+    if (errorUsuario || !usuario) {
+      throw new Error('Usuario no encontrado en el sistema');
+    }
+
+    if (usuario.rol !== 'profesor') {
+      throw new Error('Acceso denegado: Solo los profesores tienen permisos para crear clases.');
+    }
+
+    // Insertar la clase (el código de invitación se genera automáticamente en BD)
+    const { data: clase, error: errorClase } = await supabase
+      .from('clases')
+      .insert([{ nombre, descripcion, tipo }])
+      .select()
+      .single();
+
+    if (errorClase) throw new Error(`Error al crear clase: ${errorClase.message}`);
+
+    // Asignar el profesor a la tabla intermedia
+    const { error: errorProfesor } = await supabase
+      .from('clase_profesores')
+      .insert([{ clase_id: clase.id, profesor_id: profesorId }]);
+
+    if (errorProfesor) throw new Error(`Error al asignar profesor: ${errorProfesor.message}`);
+
+    return clase;
+  }
+
+  // Obtener info pública de una clase por su código (Para el Link de Invitación)
+  static async obtenerInfoInvitacion(codigo: string) {
+    const { data, error } = await supabase
+      .from('clases')
+      .select('id, nombre, tipo, activo')
+      .eq('codigo_invitacion', codigo)
+      .single();
+
+    if (error || !data) throw new Error('Código de invitación inválido o clase inexistente');
+    if (!data.activo) throw new Error('Esta clase ya no está activa');
+
+    return data;
+  }
+
+  // Lógica para que un alumno se una usando un código
+  static async unirseConCodigo(alumnoId: string, codigo: string) {
+    // Validar la clase
+    const clase = await this.obtenerInfoInvitacion(codigo);
+
+    // Verificar si el alumno ya está dentro
+    const { data: existente } = await supabase
+      .from('clase_alumnos')
+      .select('*')
+      .eq('clase_id', clase.id)
+      .eq('alumno_id', alumnoId)
+      .single();
+
+    if (existente) throw new Error('Ya estás inscrito en esta clase');
+
+    // Intentar insertar (El Trigger de la base de datos protegerá si es particular y ya está llena)
+    const { error: errorInsert } = await supabase
+      .from('clase_alumnos')
+      .insert([{ clase_id: clase.id, alumno_id: alumnoId }]);
+
+    if (errorInsert) {
+      // Si el trigger salta, capturar su mensaje
+      if (errorInsert.message.includes('Integridad de datos')) {
+        throw new Error('Esta clase particular ya está asignada a otro alumno');
+      }
+      throw new Error('Error al unirse a la clase');
+    }
+
+    return { mensaje: 'Te has unido a la clase correctamente', claseId: clase.id };
+  }
+
+  // Cambiar estado activo/inactivo
+  static async cambiarEstado(claseId: string, estado: boolean) {
+    const { data, error } = await supabase
+      .from('clases')
+      .update({ activo: estado })
+      .eq('id', claseId)
+      .select()
+      .single();
+
+    if (error) throw new Error('Error al actualizar el estado de la clase');
+    return data;
+  }
+
+  // Eliminar la clase de forma permanente (Hard Delete)
+  static async eliminarClase(claseId: string) {
+    const { data, error } = await supabase
+      .from('clases')
+      .delete()
+      .eq('id', claseId)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Error al eliminar la clase: ${error.message}`);
+    return data;
+  }
+
+  // Obtener todas las clases (grupales y particulares) de un profesor
+  static async getClasesPorProfesor(profesorId: string) {
+    const { data, error } = await supabase
+      .from('clases')
+      .select('*, clase_profesores!inner(profesor_id)')
+      .eq('clase_profesores.profesor_id', profesorId);
+
+    if (error) throw new Error(`Error al obtener clases: ${error.message}`);
+    return data;
+  }
+
+  // Obtener todas las clases (grupales y particulares) de un alumno
+  static async getClasesPorAlumno(alumnoId: string) {
+    const { data, error } = await supabase
+      .from('clases')
+      .select('*, clase_alumnos!inner(alumno_id)')
+      .eq('clase_alumnos.alumno_id', alumnoId);
+
+    if (error) throw new Error(`Error al obtener clases del alumno: ${error.message}`);
+    return data;
+  }
+}
