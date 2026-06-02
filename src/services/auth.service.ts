@@ -3,11 +3,11 @@ import { RegistroUsuarioDTO, LoginUsuarioDTO } from '../types/index';
 
 export class AuthService {
   static async registrarUsuario(datos: RegistroUsuarioDTO) {
-    // 1. Crear el usuario en auth.users (Autenticación de Supabase)
+    // Crear el usuario en auth.users (Autenticación de Supabase)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: datos.email,
       password: datos.password,
-      email_confirm: true // Asumimos el email como confirmado para no crear correos de verificación y acelerar el proceso de desarrollo.
+      email_confirm: true // Asumir el email como confirmado para no crear correos de verificación y acelerar el proceso de desarrollo.
     });
 
     if (authError) {
@@ -16,7 +16,7 @@ export class AuthService {
 
     const userId = authData.user.id;
 
-    // 2. Insertar los datos adicionales en la tabla pública 'usuarios'
+    // Insertar los datos adicionales en la tabla pública 'usuarios'
     const { data: usuarioData, error: dbError } = await supabaseAdmin
       .from('usuarios')
       .insert([
@@ -31,9 +31,9 @@ export class AuthService {
       .select()
       .single();
 
-    // 3. Rollback
+    // Rollback
     if (dbError) {
-      // Si la inserción en la base de datos falla, borramos el usuario de auth
+      // Si la inserción en la base de datos falla, borrar el usuario de auth
       // para evitar dejar un usuario fantasma que no puede iniciar sesión correctamente.
       await supabaseAdmin.auth.admin.deleteUser(userId);
       throw new Error(`Error al crear el perfil: ${dbError.message}`);
@@ -43,7 +43,7 @@ export class AuthService {
   }
 
   static async loginUsuario(datos: LoginUsuarioDTO) {
-    // 1. Verificamos las credenciales con Supabase Auth
+    // Verificar las credenciales con Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
       email: datos.email,
       password: datos.password as string,
@@ -56,7 +56,7 @@ export class AuthService {
 
     const userId = authData.user.id;
 
-    // 2. Obtenemos el perfil completo de nuestra tabla pública
+    // Obtener el perfil completo de la tabla pública
     const { data: perfilData, error: perfilError } = await supabaseAdmin
       .from('usuarios')
       .select('*')
@@ -67,7 +67,7 @@ export class AuthService {
       throw new Error(`Error al obtener los datos del perfil: ${perfilError.message}`);
     }
 
-    // 3. Devolvemos la sesión (el token JWT) y el perfil fusionados
+    // Devolver la sesión (el token JWT) y el perfil fusionados
     return {
       token: authData.session.access_token,
       usuario: perfilData
