@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { AuthService, RegistroUsuarioDTO, LoginUsuarioDTO } from '../services/auth.service';
+import { AuthService } from '../services/auth.service';
+import { RegistroUsuarioDTO, LoginUsuarioDTO } from '../types/index';
 
 export class AuthController {
   static async register(req: Request, res: Response): Promise<void> {
@@ -45,7 +46,7 @@ export class AuthController {
     try {
       const { email, password } = req.body as LoginUsuarioDTO;
 
-      // 1. Validación básica
+      // Validación básica
       if (!email || !password) {
         res.status(400).json({ 
           success: false, 
@@ -54,10 +55,10 @@ export class AuthController {
         return;
       }
 
-      // 2. Llamada al servicio
+      // Llamada al servicio
       const datosLogin = await AuthService.loginUsuario({ email, password });
 
-      // 3. Respuesta exitosa (Código 200 OK)
+      // Respuesta exitosa (Código 200 OK)
       res.status(200).json({
         success: true,
         message: 'Inicio de sesión exitoso',
