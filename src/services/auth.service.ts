@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '../config/supabase';
 import { RegistroUsuarioDTO, LoginUsuarioDTO } from '../types/index';
+import { supabaseAdmin, supabasePublic } from '../config/supabase';
 
 export class AuthService {
   static async registrarUsuario(datos: RegistroUsuarioDTO) {
@@ -43,20 +43,20 @@ export class AuthService {
   }
 
   static async loginUsuario(datos: LoginUsuarioDTO) {
-    // Verificar las credenciales con Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+    // AQUI ESTA EL CAMBIO: Usamos el cliente PÚBLICO para hacer login
+    const { data: authData, error: authError } = await supabasePublic.auth.signInWithPassword({
       email: datos.email,
       password: datos.password as string,
     });
 
-    // Si la contraseña está mal o el usuario no existe, Supabase devuelve un error
     if (authError) {
       throw new Error(`Credenciales incorrectas: ${authError.message}`);
     }
 
     const userId = authData.user.id;
 
-    // Obtener el perfil completo de la tabla pública
+    // Aquí volvemos a usar el Admin (o el público, ambos sirven si el RLS de SELECT es público) 
+    // para traernos el perfil de la tabla.
     const { data: perfilData, error: perfilError } = await supabaseAdmin
       .from('usuarios')
       .select('*')
@@ -67,7 +67,6 @@ export class AuthService {
       throw new Error(`Error al obtener los datos del perfil: ${perfilError.message}`);
     }
 
-    // Devolver la sesión (el token JWT) y el perfil fusionados
     return {
       token: authData.session.access_token,
       usuario: perfilData
