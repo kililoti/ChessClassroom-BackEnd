@@ -5,6 +5,7 @@ import cors from 'cors';
 dotenv.config();
 import authRoutes from './routes/auth.routes';
 import claseRoutes from './routes/clase.routes';
+import chatRoutes from './routes/chat.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/clases', claseRoutes);
+app.use('/api/chats', chatRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
