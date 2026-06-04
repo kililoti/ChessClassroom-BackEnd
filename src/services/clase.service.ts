@@ -39,6 +39,35 @@ export class ClaseService {
 
     if (errorProfesor) throw new Error(`Error al asignar profesor: ${errorProfesor.message}`);
 
+    // Creación automática de salas de chat para la clase y asignación del profesor a esas salas
+    // Crear las salas por defecto
+    const { data: salas, error: errorSalas } = await supabase
+      .from('salas_chat')
+      .insert([
+        { clase_id: clase.id, nombre: 'General', tipo: 'clase_general' },
+        { clase_id: clase.id, nombre: 'Material de estudio', tipo: 'clase_estudio' }
+      ])
+      .select('id'); // Pedir que devuelva los IDs generados
+
+    if (errorSalas) {
+      console.error('Advertencia: La clase se creó, pero fallaron los chats:', errorSalas);
+    } 
+    // Meter al profesor automáticamente como participante de esas salas
+    else if (salas && salas.length > 0) {
+      const participantesData = salas.map(sala => ({
+        sala_id: sala.id,
+        usuario_id: profesorId
+      }));
+
+      const { error: errorParticipantes } = await supabase
+        .from('participantes_chat')
+        .insert(participantesData); // Inserción múltiple (Bulk insert)
+
+      if (errorParticipantes) {
+        console.error('Advertencia: No se pudo añadir al profesor a los chats:', errorParticipantes);
+      }
+    }
+
     return clase;
   }
 
@@ -71,18 +100,42 @@ export class ClaseService {
 
     if (existente) throw new Error('Ya estás inscrito en esta clase');
 
-    // Intentar insertar (El Trigger de la base de datos protegerá si es particular y ya está llena)
+    // Intentar insertar
     const { error: errorInsert } = await supabase
       .from('clase_alumnos')
       .insert([{ clase_id: clase.id, alumno_id: alumnoId }]);
 
     if (errorInsert) {
-      // Si el trigger salta, capturar su mensaje
       if (errorInsert.message.includes('Integridad de datos')) {
         throw new Error('Esta clase particular ya está asignada a otro alumno');
       }
       throw new Error('Error al unirse a la clase');
     }
+
+    // Obtener todas las salas de chat que pertenezcan a esta clase
+    const { data: salas } = await supabase
+      .from('salas_chat')
+      .select('id')
+      .eq('clase_id', clase.id);
+
+    // Si hay salas, meter al alumno en todas ellas de golpe
+    if (salas && salas.length > 0) {
+      const participantesData = salas.map(sala => ({
+        sala_id: sala.id,
+        usuario_id: alumnoId
+      }));
+
+      const { error: errorParticipantes } = await supabase
+        .from('participantes_chat')
+        .insert(participantesData);
+
+      if (errorParticipantes) {
+        // Hacer un console.error en lugar de un throw para que no se cancele 
+        // la respuesta exitosa de inscripción a la clase, pero quede registrado el bug.
+        console.error('Error al inscribir al alumno en los chats:', errorParticipantes);
+      }
+    }
+    // ------------------------------------------
 
     return { mensaje: 'Te has unido a la clase correctamente', claseId: clase.id };
   }
