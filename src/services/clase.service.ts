@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { ChatService } from './chat.service';
 
 // Usar la service_role_key para operar como administradores desde el backend
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -186,5 +187,26 @@ export class ClaseService {
 
     if (error) throw new Error(`Error al obtener clases del alumno: ${error.message}`);
     return data;
+  }
+
+  // Obtener una clase específica y su sala de chat principal
+  static async obtenerClasePorId(claseId: string) {
+    // Buscar los datos de la clase
+    const { data: clase, error: errorClase } = await supabase
+      .from('clases')
+      .select('*')
+      .eq('id', claseId)
+      .single();
+
+    if (errorClase || !clase) throw new Error('Clase no encontrada');
+
+    // Pedir al ChatService que busque la sala de chat general
+    const salaId = await ChatService.obtenerIdSalaGeneral(claseId);
+
+    // Devolver el paquete completo al controlador
+    return {
+      ...clase,
+      salaIdPrincipal: salaId
+    };
   }
 }
