@@ -101,4 +101,15 @@ export class ClaseController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async obtenerClase(req: Request, res: Response): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      
+      const clase = await ClaseService.obtenerClasePorId(id);
+      res.status(200).json(clase);
+    } catch (error: any) {
+      res.status(404).json({ error: error.message });
+    }
+  }
 }
