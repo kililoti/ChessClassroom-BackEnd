@@ -26,44 +26,71 @@ export const crearCarpeta = async (
 };
 
 export const obtenerCarpetas = async (
-  claseId: string, 
-  modulo: string, 
-  carpetaPadreId: string | null | undefined, 
+  claseId: string,
+  modulo: string,
+  carpetaPadreId: string | null | undefined,
   esProfesor: boolean
 ) => {
-  // 1. Filtros básicos e INNER JOIN
   let query = supabaseAdmin
     .from('recursos_carpetas')
-    .select(`
-      *,
-      usuarios (nombre, apellidos)
-    `)
+    .select(`*, usuarios (nombre, apellidos)`)
     .eq('clase_id', claseId)
     .eq('modulo', modulo);
 
-  // 2. Filtro Jerárquico (Navegación entre carpetas)
   if (carpetaPadreId) {
     query = query.eq('carpeta_padre_id', carpetaPadreId);
   } else {
-    query = query.is('carpeta_padre_id', null); // Si no hay padre, trae la raíz
+    query = query.is('carpeta_padre_id', null);
   }
 
-  // 3. Filtro de Seguridad (Visibilidad)
   if (!esProfesor) {
     query = query.eq('visible', true);
   }
 
-  // 4. Opcional: Ordenar alfabéticamente o por fecha
   query = query.order('created_at', { ascending: false });
 
   const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data;
+};
 
-  if (error) {
-    console.error("Error SQL:", error);
-    throw new Error(error.message);
+export const obtenerCarpetaPorId = async (id: string) => {
+  const { data, error } = await supabaseAdmin
+    .from('recursos_carpetas')
+    .select(`*, usuarios (nombre, apellidos)`)
+    .eq('id', id)
+    .single();
+
+  if (error) throw new Error(`Carpeta no encontrada: ${error.message}`);
+  return data;
+};
+
+// Recibe el ID de una carpeta y devuelve el array de breadcrumbs ordenado desde
+// la raíz hasta esa carpeta: [{ id, nombre }, { id, nombre }, ...]
+// Se usa cuando el usuario accede directamente a una URL anidada para reconstruir
+// el breadcrumb completo sin necesidad de haber navegado paso a paso.
+export const obtenerAncestrosCarpeta = async (carpetaId: string): Promise<{ id: string; nombre: string }[]> => {
+  const ancestros: { id: string; nombre: string }[] = [];
+  let idActual: string | null = carpetaId;
+
+  // Subir nivel a nivel hasta llegar a la raíz (carpeta_padre_id === null)
+  // Máximo 10 niveles para evitar bucles infinitos por datos corruptos
+  for (let i = 0; i < 10; i++) {
+    if (!idActual) break;
+
+    const { data, error } = await supabaseAdmin
+      .from('recursos_carpetas')
+      .select('id, nombre, carpeta_padre_id')
+      .eq('id', idActual)
+      .single() as { data: { id: string; nombre: string; carpeta_padre_id: string | null } | null; error: any };
+
+    if (error || !data) break;
+
+    ancestros.unshift({ id: data.id, nombre: data.nombre });
+    idActual = data.carpeta_padre_id;
   }
 
-  return data;
+  return ancestros;
 };
 
 export const eliminarCarpeta = async (carpetaId: string) => {
