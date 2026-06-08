@@ -14,13 +14,12 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
       return;
     }
 
-    // Extraer solo el JWT (quitar la palabra "Bearer ")
     const token = authHeader.split(' ')[1];
 
     // Pedir a Supabase que valide este token
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (error || !data.user) {
+    if (authError || !authData.user) {
       res.status(401).json({ 
         success: false, 
         message: 'Acceso denegado: Token inválido o expirado.' 
@@ -28,8 +27,25 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
       return;
     }
 
-    // Si es real, inyectar sus datos en la Request
-    (req as any).usuario = data.user;
+    // Buscar el rol en tabla 'usuarios'
+    const { data: userData, error: dbError } = await supabaseAdmin
+      .from('usuarios')
+      .select('rol, nombre, apellidos')
+      .eq('id', authData.user.id)
+      .maybeSingle(); // Usar maybeSingle() en lugar de single() para que no lance error si no lo encuentra
+
+    if (dbError) {
+      console.error(`Error al buscar usuario en DB (ID: ${authData.user.id}):`, dbError.message);
+      // No bloquea la petición, deja que continúe como "alumno" por seguridad
+    }
+
+    // Inyectar sus datos combinados en la Request
+    (req as any).usuario = {
+      ...authData.user, // Mantiene todo lo que ya tenía (id, email, etc.)
+      rol: userData?.rol || 'alumno', // Fallback a "alumno" si no encuentra el usuario o el rol
+      nombre: userData?.nombre || 'Usuario',
+      apellidos: userData?.apellidos || 'Desconocido'
+    };
 
     // Decir a Express que continúe hacia el Controlador
     next();
