@@ -3,7 +3,7 @@ import { supabaseAdmin } from '../config/supabase';
 
 export const verificarAutenticacion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // 1. Buscar el token en las cabeceras de la petición
+    // Buscar el token en las cabeceras de la petición
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,7 +16,7 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
 
     const token = authHeader.split(' ')[1];
 
-    // 2. Pedir a Supabase que valide este token
+    // Pedir a Supabase que valide este token
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !authData.user) {
@@ -27,27 +27,27 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
       return;
     }
 
-    // 3. ENRIQUECER: Buscar el rol en tu tabla 'usuarios'
+    // Buscar el rol en tu tabla 'usuarios'
     const { data: userData, error: dbError } = await supabaseAdmin
       .from('usuarios')
       .select('rol, nombre, apellidos')
       .eq('id', authData.user.id)
-      .maybeSingle(); // Usamos maybeSingle() en lugar de single() para que no lance error si no lo encuentra
+      .maybeSingle(); // Usar maybeSingle() en lugar de single() para que no lance error si no lo encuentra
 
     if (dbError) {
       console.error(`Error al buscar usuario en DB (ID: ${authData.user.id}):`, dbError.message);
-      // No bloqueamos la petición, dejamos que continúe como "alumno" por seguridad
+      // No bloquea la petición, deja que continúe como "alumno" por seguridad
     }
 
     // 4. Inyectar sus datos combinados en la Request
     (req as any).usuario = {
       ...authData.user, // Mantiene todo lo que ya tenía (id, email, etc.)
-      rol: userData?.rol || 'alumno', // Fallback hiper-seguro
+      rol: userData?.rol || 'alumno', // Fallback a "alumno" si no encuentra el usuario o el rol
       nombre: userData?.nombre || 'Usuario',
       apellidos: userData?.apellidos || 'Desconocido'
     };
 
-    // 5. Decir a Express que continúe hacia el Controlador
+    // Decir a Express que continúe hacia el Controlador
     next();
     
   } catch (error) {
