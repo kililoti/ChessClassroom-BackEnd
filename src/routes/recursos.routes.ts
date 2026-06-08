@@ -18,22 +18,22 @@ const upload = multer({
 });
 
 // CARPETAS
-router.post   ('/carpetas',                   verificarAutenticacion, crearCarpeta);
-router.get    ('/carpetas',                   verificarAutenticacion, listarCarpetas);
+router.post   ('/carpetas', verificarAutenticacion, crearCarpeta);
+router.get    ('/carpetas', verificarAutenticacion, listarCarpetas);
 
-router.get    ('/carpetas/ancestros/:id',     verificarAutenticacion, obtenerAncestros);
-router.get    ('/carpetas/:id/sala-chat',     verificarAutenticacion, obtenerSalaCarpeta);
-router.get    ('/carpetas/:id',               verificarAutenticacion, obtenerCarpeta);
-router.patch  ('/carpetas/:id',               verificarAutenticacion, toggleVisibilidadCarpeta);
-router.delete ('/carpetas/:id',               verificarAutenticacion, borrarCarpeta);
+router.get    ('/carpetas/ancestros/:id', verificarAutenticacion, obtenerAncestros);
+router.get    ('/carpetas/:id/sala-chat', verificarAutenticacion, obtenerSalaCarpeta);
+router.get    ('/carpetas/:id', verificarAutenticacion, obtenerCarpeta);
+router.patch  ('/carpetas/:id', verificarAutenticacion, toggleVisibilidadCarpeta);
+router.delete ('/carpetas/:id', verificarAutenticacion, borrarCarpeta);
 
 // ARCHIVOS
 router.get    ('/archivos/carpeta/:carpeta_id', verificarAutenticacion, listarArchivosDeCarpeta);
-router.get    ('/archivos/:id',               verificarAutenticacion, obtenerArchivo);
-router.patch  ('/archivos/:id',               verificarAutenticacion, toggleVisibilidadArchivo);
-router.delete ('/archivos/:id',               verificarAutenticacion, borrarArchivo);
+router.get    ('/archivos/:id', verificarAutenticacion, obtenerArchivo);
+router.patch  ('/archivos/:id', verificarAutenticacion, toggleVisibilidadArchivo);
+router.delete ('/archivos/:id', verificarAutenticacion, borrarArchivo);
 
-router.post   ('/upload-pgn',                 verificarAutenticacion, upload.single('file'), subirArchivoPGN);
-router.get    ('/descargar/:id',              verificarAutenticacion, descargarArchivo);
+router.post   ('/upload-pgn', verificarAutenticacion, upload.single('file'), subirArchivoPGN);
+router.get    ('/descargar/:id', verificarAutenticacion, descargarArchivo);
 
 export default router;
