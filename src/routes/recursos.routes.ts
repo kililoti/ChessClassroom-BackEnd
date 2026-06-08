@@ -1,31 +1,45 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { verificarAutenticacion } from '../middlewares/auth.middleware';
-import { crearCarpeta, listarCarpetas, borrarCarpeta, listarArchivosDeCarpeta, toggleVisibilidadCarpeta } from '../controllers/carpetas.controller';
-import { subirArchivoPGN, descargarArchivo, toggleVisibilidadArchivo, borrarArchivo } from '../controllers/recursos.controller';
+import {
+  crearCarpeta,
+  listarCarpetas,
+  obtenerCarpeta,
+  obtenerAncestros,
+  borrarCarpeta,
+  listarArchivosDeCarpeta,
+  toggleVisibilidadCarpeta,
+} from '../controllers/carpetas.controller';
+import {
+  subirArchivoPGN,
+  descargarArchivo,
+  obtenerArchivo,
+  toggleVisibilidadArchivo,
+  borrarArchivo,
+} from '../controllers/recursos.controller';
 
 const router = Router();
 
-// Configuración de multer (máximo 10MB en memoria)
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 } 
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-// RUTAS DE CARPETAS
-router.post('/carpetas', verificarAutenticacion, crearCarpeta);
-router.get('/carpetas', verificarAutenticacion, listarCarpetas);
+// CARPETAS
+router.post  ('/carpetas', verificarAutenticacion, crearCarpeta);
+router.get   ('/carpetas', verificarAutenticacion, listarCarpetas);
+router.get   ('/carpetas/ancestros/:id', verificarAutenticacion, obtenerAncestros);
+router.get   ('/carpetas/:id', verificarAutenticacion, obtenerCarpeta);
+router.patch ('/carpetas/:id', verificarAutenticacion, toggleVisibilidadCarpeta);
 router.delete('/carpetas/:id', verificarAutenticacion, borrarCarpeta);
 
-// RUTAS DE ARCHIVOS (RECURSOS)
-router.post('/upload-pgn', verificarAutenticacion, upload.single('file'), subirArchivoPGN);
-router.get('/descargar/:id', verificarAutenticacion, descargarArchivo);
-
-router.get('/archivos/:carpeta_id', verificarAutenticacion, listarArchivosDeCarpeta);
-
-router.patch('/carpetas/:id', verificarAutenticacion, toggleVisibilidadCarpeta);
-router.patch('/archivos/:id', verificarAutenticacion, toggleVisibilidadArchivo);
-
+// ARCHIVOS
+router.get   ('/archivos/carpeta/:carpeta_id', verificarAutenticacion, listarArchivosDeCarpeta);
+router.get   ('/archivos/:id', verificarAutenticacion, obtenerArchivo);
+router.patch ('/archivos/:id', verificarAutenticacion, toggleVisibilidadArchivo);
 router.delete('/archivos/:id', verificarAutenticacion, borrarArchivo);
+
+router.post  ('/upload-pgn', verificarAutenticacion, upload.single('file'), subirArchivoPGN);
+router.get   ('/descargar/:id', verificarAutenticacion, descargarArchivo);
 
 export default router;
