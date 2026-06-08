@@ -27,7 +27,7 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
       return;
     }
 
-    // Buscar el rol en tu tabla 'usuarios'
+    // Buscar el rol en tabla 'usuarios'
     const { data: userData, error: dbError } = await supabaseAdmin
       .from('usuarios')
       .select('rol, nombre, apellidos')
@@ -39,7 +39,7 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
       // No bloquea la petición, deja que continúe como "alumno" por seguridad
     }
 
-    // 4. Inyectar sus datos combinados en la Request
+    // Inyectar sus datos combinados en la Request
     (req as any).usuario = {
       ...authData.user, // Mantiene todo lo que ya tenía (id, email, etc.)
       rol: userData?.rol || 'alumno', // Fallback a "alumno" si no encuentra el usuario o el rol
