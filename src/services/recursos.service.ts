@@ -18,7 +18,8 @@ export const procesarYSubirPGN = async (
   profesorId: string,
   categoria: string,
   nombrePersonalizado?: string,
-  visible: boolean = true
+  visible: boolean = true,
+  tipo_recurso: 'estudio' | 'ejercicio' = 'estudio'
 ) => {
   const rawText = archivoBuffer.toString('utf-8');
   const bloquesJuego = rawText.split(/(?=\[Event\s)/g).filter(block => block.trim().length > 0);
@@ -66,7 +67,8 @@ export const procesarYSubirPGN = async (
       categoria,
       storage_path: storagePath,
       metadata,
-      visible
+      visible,
+      tipo_recurso
     })
     .select()
     .single();
