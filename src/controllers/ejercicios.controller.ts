@@ -18,7 +18,7 @@ export const subirEjercicio = async (req: Request, res: Response): Promise<void>
   try {
     const {
       carpeta_id, categoria, nombre, visible,
-      solucion_pgn, fecha_entrega, comentarios_solucion, texto_fen_o_pgn,
+      solucion_pgn, fecha_inicio, fecha_entrega, comentarios_solucion, texto_fen_o_pgn,
     } = req.body;
     const profesor_id = (req as any).usuario?.id;
 
@@ -41,7 +41,7 @@ export const subirEjercicio = async (req: Request, res: Response): Promise<void>
       archivoBuffer, nombreOriginal, mimeType,
       carpeta_id, profesor_id, categoria,
       nombre, isVisible,
-      solucion_pgn, fecha_entrega, comentarios_solucion,
+      solucion_pgn, fecha_inicio, fecha_entrega, comentarios_solucion
     );
 
     res.status(201).json({ success: true, mensaje: 'Ejercicio creado con éxito', ejercicio });
@@ -123,26 +123,36 @@ export const actualizarSolucion = async (req: Request, res: Response): Promise<v
   }
 };
 
-export const actualizarFechaEntrega = async (req: Request, res: Response): Promise<void> => {
+export const actualizarFechas = async (req: Request, res: Response): Promise<void> => {
   try {
     const archivo_id = req.params.id; 
-    const { fecha_entrega } = req.body;
+    const { fecha_inicio, fecha_entrega } = req.body;
 
-    // Guardar la fecha
-    await supabaseAdmin.from('ejercicios').update({ fecha_entrega }).eq('archivo_id', archivo_id);
+    if (fecha_inicio && fecha_entrega) {
+      if (new Date(fecha_inicio) > new Date(fecha_entrega)) {
+        res.status(400).json({ success: false, error: 'La fecha de inicio no puede ser posterior a la de entrega.' });
+        return;
+      }
+    }
 
     if (!archivo_id || typeof archivo_id !== 'string') {
       res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
       return;
     }
+
+    await supabaseAdmin
+      .from('ejercicios')
+      .update({ fecha_inicio, fecha_entrega })
+      .eq('archivo_id', archivo_id);
     
     await ejerciciosService.verificarYAsignarAlumnos(archivo_id);
 
-    res.status(200).json({ success: true, mensaje: 'Fecha guardada' });
+    res.status(200).json({ success: true, mensaje: 'Fechas guardadas' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
 export const asignarEjercicio = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -268,7 +278,12 @@ export const actualizarMovimiento = async (req: Request, res: Response): Promise
     await ejerciciosService.registrarMovimientoAlumno(ejercicioId, alumno_id, es_correcto, pgn_actualizado, es_final ?? false);
     res.status(200).json({ success: true, mensaje: 'Progreso guardado.' });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+ 
+    if (error.message === 'EJERCICIO_VENCIDO') {
+      res.status(403).json({ success: false, error: 'El ejercicio ha vencido. No se pueden guardar más respuestas.' });
+    } else {
+      res.status(500).json({ success: false, error: error.message });
+    }
   }
 };
 
@@ -291,7 +306,11 @@ export const guardarComentarioAlumno = async (req: Request, res: Response): Prom
     const resultado = await ejerciciosService.guardarComentarioAlumno(ejercicioId, alumno_id, comentario);
     res.status(200).json({ success: true, respuesta: resultado });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+
+    if (error.message === 'EJERCICIO_VENCIDO') {
+      res.status(403).json({ success: false, error: 'El ejercicio ha vencido. No se puede guardar el comentario.' });
+    } else {
+      res.status(500).json({ success: false, error: error.message });
+    }
   }
 };
-

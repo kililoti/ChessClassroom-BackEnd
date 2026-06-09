@@ -5,7 +5,7 @@ import {
   subirEjercicio,
   obtenerEjercicio,
   actualizarSolucion,
-  actualizarFechaEntrega,
+  actualizarFechas,
   asignarEjercicio,
   listarRespuestas,
   evaluarAlumno,
@@ -31,7 +31,7 @@ router.patch('/respuestas/:respuesta_id/evaluar', verificarAutenticacion, evalua
 router.post  ('/', verificarAutenticacion, upload.single('file'), subirEjercicio);
 router.get   ('/:id', verificarAutenticacion, obtenerEjercicio);
 router.patch ('/:id/solucion', verificarAutenticacion, actualizarSolucion);
-router.patch ('/:id/fecha-entrega', verificarAutenticacion, actualizarFechaEntrega);
+router.patch ('/:id/fechas', verificarAutenticacion, actualizarFechas);
 router.patch ('/:id/asignar', verificarAutenticacion, asignarEjercicio);
 router.get   ('/:id/respuestas', verificarAutenticacion, listarRespuestas);
 

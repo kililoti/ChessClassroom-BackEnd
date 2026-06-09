@@ -13,10 +13,11 @@ export const crearEjercicio = async (
   nombrePersonalizado?: string,
   visible: boolean = true,
   solucionPgn?: string,
+  fechaInicio?: string,
   fechaEntrega?: string,
   comentariosSolucion?: string,
 ) => {
-  // Subir el archivo base marcándolo como tipo_recurso = 'ejercicio'
+  // Subir el archivo base
   const archivoBase = await recursosService.procesarYSubirPGN(
     archivoBuffer, nombreOriginal, mimeType,
     carpetaId, profesorId, categoria,
@@ -24,11 +25,12 @@ export const crearEjercicio = async (
     'ejercicio'
   );
 
-  // Crear la configuración específica del ejercicio
+  // Crear la configuración
   const { data: ejercicio, error } = await supabaseAdmin
     .from('ejercicios')
     .insert({
       archivo_id:           archivoBase.id,
+      fecha_inicio:         fechaInicio || null,
       fecha_entrega:        fechaEntrega || null,
       solucion_pgn:         solucionPgn || null,
       comentarios_solucion: comentariosSolucion || null,
@@ -199,21 +201,38 @@ export const registrarMovimientoAlumno = async (
   pgnActualizado: string,
   esFinal: boolean = false,
 ) => {
+
+  // OBTENER LA FECHA DE ENTREGA DEL EJERCICIO
+  const { data: ejercicio, error: errEj } = await supabaseAdmin
+    .from('ejercicios')
+    .select('fecha_entrega')
+    .eq('id', ejercicioId)
+    .single();
+
+  if (errEj) throw new Error(`Error al verificar ejercicio: ${errEj.message}`);
+
+  // VERIFICAR SI HA VENCIDO
+  if (ejercicio?.fecha_entrega) {
+    const vencimiento = new Date(ejercicio.fecha_entrega);
+    const ahora = new Date();
+    if (ahora > vencimiento) {
+      throw new Error('EJERCICIO_VENCIDO');
+    }
+  }
+
+  // CONTINUAR CON EL GUARDADO ORIGINAL
   const updateData: Record<string, any> = {
     pgn_ultimo_movimiento: pgnActualizado,
   };
 
   if (esCorrecto) {
-    // Avanzar el checkpoint correcto
     updateData.pgn_avanzado_correcto = pgnActualizado;
 
     if (esFinal) {
-      updateData.estado           = 'COMPLETADO';
+      updateData.estado = 'COMPLETADO';
       updateData.fecha_completado = new Date().toISOString();
     }
   }
-  // Si es incorrecto, solo guarda pgn_ultimo_movimiento (ya está en updateData)
-  // y llama a la RPC para incrementar de forma atómica
 
   const { error } = await supabaseAdmin
     .from('respuestas_alumnos')
@@ -223,7 +242,6 @@ export const registrarMovimientoAlumno = async (
 
   if (error) throw new Error(`Error al guardar movimiento: ${error.message}`);
 
-  // Incremento atómico de intentos fallidos via RPC
   if (!esCorrecto) {
     await supabaseAdmin.rpc('incrementar_intentos_fallidos', {
       ej_id: ejercicioId,
@@ -241,6 +259,19 @@ export const guardarComentarioAlumno = async (
   alumnoId: string,
   comentario: string,
 ) => {
+
+  // VERIFICAR SI HA VENCIDO
+  const { data: ejercicio } = await supabaseAdmin
+    .from('ejercicios')
+    .select('fecha_entrega')
+    .eq('id', ejercicioId)
+    .single();
+
+  if (ejercicio?.fecha_entrega && new Date() > new Date(ejercicio.fecha_entrega)) {
+    throw new Error('EJERCICIO_VENCIDO');
+  }
+
+  // CONTINUAR CON EL GUARDADO ORIGINAL
   const { data, error } = await supabaseAdmin
     .from('respuestas_alumnos')
     .update({ comentario_alumno: comentario })
