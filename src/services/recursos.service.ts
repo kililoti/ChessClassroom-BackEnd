@@ -133,7 +133,7 @@ export const obtenerArchivosDeCarpeta = async (
 
   const ahora = new Date();
 
-  // 1. Mapeamos y filtramos
+  // Mapear y filtrar
   const archivosMapeados = data.map((archivo: any) => {
     const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
     
@@ -161,7 +161,7 @@ export const obtenerArchivosDeCarpeta = async (
     };
   }).filter((archivo: any) => archivo !== null);
 
-  // 2. Ordenamos la lista resultante
+  // Ordenar la lista resultante
   return archivosMapeados.sort((a: any, b: any) => {
     const obtenerPrioridad = (archivo: any) => {
       const metaEj = archivo.metadata_ejercicio;
