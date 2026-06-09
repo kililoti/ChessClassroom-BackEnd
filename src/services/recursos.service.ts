@@ -19,7 +19,7 @@ export const procesarYSubirPGN = async (
   categoria: string,
   nombrePersonalizado?: string,
   visible: boolean = true,
-  tipo_recurso: 'estudio' | 'ejercicio' = 'estudio'
+  tipoRecurso: 'estudio' | 'ejercicio' = 'estudio'
 ) => {
   const rawText = archivoBuffer.toString('utf-8');
   const bloquesJuego = rawText.split(/(?=\[Event\s)/g).filter(block => block.trim().length > 0);
@@ -68,7 +68,7 @@ export const procesarYSubirPGN = async (
       storage_path: storagePath,
       metadata,
       visible,
-      tipo_recurso
+      tipo_recurso: tipoRecurso,
     })
     .select()
     .single();
@@ -116,6 +116,8 @@ export const obtenerArchivosDeCarpeta = async (carpetaId: string, esProfesor: bo
   return data;
 };
 
+// Necesario para reconstruir el breadcrumb cuando el usuario accede directamente
+// a una URL de database como /estudios/abc/db/xyz/ sin haber navegado desde la raíz
 export const obtenerArchivoPorId = async (id: string, esProfesor: boolean) => {
   let query = supabaseAdmin
     .from('recursos_archivos')
