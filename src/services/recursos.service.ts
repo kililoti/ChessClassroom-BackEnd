@@ -105,7 +105,7 @@ export const obtenerArchivosDeCarpeta = async (
   esProfesor: boolean, 
   usuarioId?: string // 🌟 Nuevo parámetro
 ) => {
-  // JOIN anidado: recursos -> ejercicios -> respuestas_alumnos
+  // JOIN anidado recursos - ejercicios - respuestas_alumnos
   let query = supabaseAdmin
     .from('recursos_archivos')
     .select(`
@@ -131,7 +131,7 @@ export const obtenerArchivosDeCarpeta = async (
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  // Mapeamos los datos para crear "metadata_ejercicio"
+  // Mapea los datos para crear "metadata_ejercicio"
   return data.map((archivo: any) => {
     const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
     
@@ -143,7 +143,7 @@ export const obtenerArchivosDeCarpeta = async (
 
     return {
       ...archivo,
-      ejercicios: undefined, // Quitamos el nodo crudo
+      ejercicios: undefined,
       metadata_ejercicio: ejConfig ? {
         id_ejercicio: ejConfig.id,
         fecha_entrega: ejConfig.fecha_entrega,
