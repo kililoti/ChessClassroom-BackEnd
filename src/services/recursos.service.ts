@@ -100,10 +100,27 @@ export const generarUrlDescarga = async (archivoId: string) => {
   return urlData.signedUrl;
 };
 
-export const obtenerArchivosDeCarpeta = async (carpetaId: string, esProfesor: boolean) => {
+export const obtenerArchivosDeCarpeta = async (
+  carpetaId: string, 
+  esProfesor: boolean, 
+  usuarioId?: string // 🌟 Nuevo parámetro
+) => {
+  // JOIN anidado: recursos -> ejercicios -> respuestas_alumnos
   let query = supabaseAdmin
     .from('recursos_archivos')
-    .select(`*, usuarios (nombre, apellidos)`)
+    .select(`
+      *, 
+      usuarios (nombre, apellidos),
+      ejercicios (
+        id,
+        fecha_entrega,
+        solucion_pgn,
+        respuestas_alumnos (
+          alumno_id,
+          estado
+        )
+      )
+    `)
     .eq('carpeta_id', carpetaId)
     .order('created_at', { ascending: false });
 
@@ -113,7 +130,28 @@ export const obtenerArchivosDeCarpeta = async (carpetaId: string, esProfesor: bo
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data;
+
+  // Mapeamos los datos para crear "metadata_ejercicio"
+  return data.map((archivo: any) => {
+    const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
+    
+    let estado = undefined;
+    if (ejConfig && !esProfesor && usuarioId) {
+      const resp = ejConfig.respuestas_alumnos?.find((r: any) => r.alumno_id === usuarioId);
+      estado = resp ? resp.estado : 'NO_INICIADO';
+    }
+
+    return {
+      ...archivo,
+      ejercicios: undefined, // Quitamos el nodo crudo
+      metadata_ejercicio: ejConfig ? {
+        id_ejercicio: ejConfig.id,
+        fecha_entrega: ejConfig.fecha_entrega,
+        solucion_pgn: ejConfig.solucion_pgn,
+        estado_alumno: estado
+      } : undefined
+    };
+  });
 };
 
 // Necesario para reconstruir el breadcrumb cuando el usuario accede directamente
