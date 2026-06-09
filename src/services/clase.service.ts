@@ -46,7 +46,8 @@ export class ClaseService {
       .from('salas_chat')
       .insert([
         { clase_id: clase.id, nombre: 'General', tipo: 'clase_general' },
-        { clase_id: clase.id, nombre: 'Material de estudio', tipo: 'clase_estudio' }
+        { clase_id: clase.id, nombre: 'Material de estudio', tipo: 'clase_estudio' },
+        { clase_id: clase.id, nombre: 'Ejercicios', tipo: 'clase_estudio' }
       ])
       .select('id'); // Pedir que devuelva los IDs generados
 
