@@ -133,10 +133,11 @@ export const obtenerArchivosDeCarpeta = async (
 
   const ahora = new Date();
 
-  // Mapear y filtrar
-  return data.map((archivo: any) => {
+  // 1. Mapeamos y filtramos
+  const archivosMapeados = data.map((archivo: any) => {
     const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
     
+    // Si es alumno y no tiene solución, no lo ve
     if (!esProfesor && ejConfig && !ejConfig.solucion_pgn) {
       return null;
     }
@@ -159,6 +160,41 @@ export const obtenerArchivosDeCarpeta = async (
       } : undefined
     };
   }).filter((archivo: any) => archivo !== null);
+
+  // 2. Ordenamos la lista resultante
+  return archivosMapeados.sort((a: any, b: any) => {
+    const obtenerPrioridad = (archivo: any) => {
+      const metaEj = archivo.metadata_ejercicio;
+      
+      // Prioridad 4: Archivos normales (no son ejercicios)
+      if (!metaEj) return 4;
+
+      const { solucion_pgn, fecha_inicio, fecha_entrega } = metaEj;
+
+      // Prioridad 0: Sin solución (Lo más urgente)
+      if (!solucion_pgn) return 0;
+
+      // Prioridad 2: Próximamente (Futuro)
+      if (fecha_inicio && new Date(fecha_inicio) > ahora) return 2;
+
+      // Prioridad 3: Finalizado (Pasado)
+      if (fecha_entrega && new Date(fecha_entrega) < ahora) return 3;
+
+      // Prioridad 1: Activos
+      return 1;
+    };
+
+    const prioridadA = obtenerPrioridad(a);
+    const prioridadB = obtenerPrioridad(b);
+
+    // Ordenar por estado primero
+    if (prioridadA !== prioridadB) {
+      return prioridadA - prioridadB;
+    }
+
+    // Si tienen el mismo estado, ordenar por fecha de creación (los más nuevos arriba)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 };
 
 // Necesario para reconstruir el breadcrumb cuando el usuario accede directamente
