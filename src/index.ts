@@ -2,10 +2,14 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
+
+
 dotenv.config();
 import authRoutes from './routes/auth.routes';
 import claseRoutes from './routes/clase.routes';
 import chatRoutes from './routes/chat.routes';
+import objetivosRoutes from './routes/objetivos.routes';
+import rutinasRoutes from './routes/rutinas.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +25,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/clases', claseRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/objetivos', objetivosRoutes);
+app.use('/api/rutinas', rutinasRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
