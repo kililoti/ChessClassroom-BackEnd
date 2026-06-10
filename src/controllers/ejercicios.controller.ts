@@ -21,29 +21,56 @@ export const subirEjercicio = async (req: Request, res: Response): Promise<void>
       solucion_pgn, fecha_inicio, fecha_entrega, comentarios_solucion, texto_fen_o_pgn,
     } = req.body;
     const profesor_id = (req as any).usuario?.id;
-
-    let archivoBuffer = req.file?.buffer;
-    let mimeType      = req.file?.mimetype || 'text/plain';
+ 
+    let archivoBuffer  = req.file?.buffer;
+    let mimeType       = req.file?.mimetype || 'text/plain';
     let nombreOriginal = req.file?.originalname || 'ejercicio_manual.pgn';
-
+ 
     if (!profesor_id) { res.status(401).json({ success: false, error: 'No autorizado.' }); return; }
     if (!carpeta_id || !categoria) { res.status(400).json({ success: false, error: 'Faltan datos obligatorios.' }); return; }
-
-    // Permitir texto FEN/PGN como alternativa al archivo
+ 
     if (!archivoBuffer && texto_fen_o_pgn) {
-      archivoBuffer  = Buffer.from(texto_fen_o_pgn, 'utf-8');
+      const texto = texto_fen_o_pgn.trim();
+ 
+      // Detectar si es FEN: no empieza por '[' ni contiene cabeceras PGN.
+      // Un FEN puro tiene 6 campos separados por espacios y no comienza con '['.
+      const esFen = !texto.startsWith('[') && !texto.startsWith('1.') && /^[rnbqkpRNBQKP1-8\/]+ [wb] /.test(texto);
+ 
+      if (esFen) {
+        // Envolver el FEN en un PGN mínimo con cabecera [FEN] para que chess.js
+        // lo cargue correctamente y el tablero arranque desde esa posición.
+        const pgnConFen = [
+          `[Event "?"]`,
+          `[Site "?"]`,
+          `[Date "????.??.??"]`,
+          `[Round "?"]`,
+          `[White "?"]`,
+          `[Black "?"]`,
+          `[Result "*"]`,
+          `[FEN "${texto}"]`,
+          `[SetUp "1"]`,
+          ``,
+          `*`,
+          ``,
+        ].join('\n');
+        archivoBuffer = Buffer.from(pgnConFen, 'utf-8');
+      } else {
+        // Es PGN directamente
+        archivoBuffer = Buffer.from(texto, 'utf-8');
+      }
     }
+ 
     if (!archivoBuffer) { res.status(400).json({ success: false, error: 'Falta archivo o texto FEN/PGN.' }); return; }
-
+ 
     const isVisible = visible !== undefined ? visible === 'true' || visible === true : true;
-
+ 
     const ejercicio = await ejerciciosService.crearEjercicio(
       archivoBuffer, nombreOriginal, mimeType,
       carpeta_id, profesor_id, categoria,
       nombre, isVisible,
       solucion_pgn, fecha_inicio, fecha_entrega, comentarios_solucion
     );
-
+ 
     res.status(201).json({ success: true, mensaje: 'Ejercicio creado con éxito', ejercicio });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
