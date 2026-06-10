@@ -341,3 +341,32 @@ export const guardarComentarioAlumno = async (req: Request, res: Response): Prom
     }
   }
 };
+
+export const guardarTiempo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params; // archivo_id
+    const alumno_id = (req as any).usuario?.id;
+    const { segundos } = req.body;
+ 
+    if (typeof segundos !== 'number' || segundos <= 0) {
+      res.status(400).json({ success: false, error: 'Segundos inválidos.' });
+      return;
+    }
+ 
+    if (!id || typeof id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+
+    const ejercicioId = await getEjercicioId(id);
+    if (!ejercicioId) {
+      res.status(404).json({ success: false, error: 'Ejercicio no encontrado.' });
+      return;
+    }
+ 
+    await ejerciciosService.guardarTiempoAlumno(ejercicioId, alumno_id, segundos);
+    res.status(200).json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

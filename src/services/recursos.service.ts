@@ -137,11 +137,13 @@ export const obtenerArchivosDeCarpeta = async (
   const archivosMapeados = data.map((archivo: any) => {
     const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
  
-    if (!esProfesor && ejConfig && !ejConfig.solucion_pgn) {
-      return null;
+    if (!esProfesor && ejConfig) {
+      if (!ejConfig.solucion_pgn || !ejConfig.fecha_inicio || !ejConfig.fecha_entrega) {
+        return null;
+      }
     }
  
-    let estado_alumno    = undefined;
+    let estado_alumno     = undefined;
     let puntuacion_alumno = undefined;
  
     if (ejConfig && !esProfesor && usuarioId) {
@@ -197,7 +199,7 @@ export const obtenerArchivosDeCarpeta = async (
  
     if (prioridadA !== prioridadB) return prioridadA - prioridadB;
  
-    // Mismo grupo - sub-ordenar solo dentro de Activos
+    // Mismo grupo — sub-ordenar solo dentro de Activos
     if (prioridadA === 1) {
       const subA = obtenerSubPrioridad(a);
       const subB = obtenerSubPrioridad(b);

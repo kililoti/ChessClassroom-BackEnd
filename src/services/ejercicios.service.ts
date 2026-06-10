@@ -350,12 +350,12 @@ export const evaluarRespuesta = async (
 };
 
 export const verificarYAsignarAlumnos = async (archivoId: string) => {
-  // Obtener el ejercicio, fecha, solución y el ID de la clase a la que pertenece
   const { data: config } = await supabaseAdmin
     .from('ejercicios')
     .select(`
       id,
       solucion_pgn,
+      fecha_inicio,
       fecha_entrega,
       archivo:recursos_archivos(
         carpeta:recursos_carpetas(clase_id)
@@ -363,34 +363,48 @@ export const verificarYAsignarAlumnos = async (archivoId: string) => {
     `)
     .eq('archivo_id', archivoId)
     .single();
-
-  // Tiene fecha Y tiene solución? Si falta una, no hace nada.
-  if (!config || !config.solucion_pgn || !config.fecha_entrega) return false;
-
+ 
+  // Requiere solución + fecha de inicio + fecha de entrega para asignar
+  if (!config || !config.solucion_pgn || !config.fecha_inicio || !config.fecha_entrega) return false;
+ 
   const claseId = (config.archivo as any)?.carpeta?.clase_id;
   if (!claseId) return false;
-
-  // Obtiene todos los alumnos inscritos en esa clase
+ 
   const { data: alumnos } = await supabaseAdmin
     .from('clase_alumnos')
     .select('alumno_id')
     .eq('clase_id', claseId);
-
+ 
   if (!alumnos || alumnos.length === 0) return false;
-
-  // Preparar el array de asignaciones con estado inicial
+ 
   const asignaciones = alumnos.map(a => ({
-    ejercicio_id: config.id, // Usar el ID interno del ejercicio
-    alumno_id: a.alumno_id,
-    estado: 'NO_INICIADO'
+    ejercicio_id: config.id,
+    alumno_id:    a.alumno_id,
+    estado:       'NO_INICIADO'
   }));
-
-  // Insertar a los alumnos
-  // 'ignoreDuplicates: true' asegura que si un alumno ya estaba asignado, no lo duplica ni resetea su progreso.
+ 
   const { error } = await supabaseAdmin
     .from('respuestas_alumnos')
     .upsert(asignaciones, { onConflict: 'ejercicio_id, alumno_id', ignoreDuplicates: true });
-
+ 
   if (error) console.error("Error en auto-asignación:", error);
+  return true;
+};
+
+export const guardarTiempoAlumno = async (
+  ejercicioId: string,
+  alumnoId: string,
+  segundos: number,
+) => {
+  if (segundos <= 0) return;
+ 
+  // Suma los segundos nuevos al acumulado ya guardado
+  const { error } = await supabaseAdmin.rpc('sumar_tiempo_ejercicio', {
+    ej_id:    ejercicioId,
+    al_id:    alumnoId,
+    segundos: segundos,
+  });
+ 
+  if (error) throw new Error(`Error al guardar tiempo: ${error.message}`);
   return true;
 };

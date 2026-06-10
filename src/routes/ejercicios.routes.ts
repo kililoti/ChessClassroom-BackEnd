@@ -13,6 +13,7 @@ import {
   obtenerMiProgreso,
   actualizarMovimiento,
   guardarComentarioAlumno,
+  guardarTiempo,
 } from '../controllers/ejercicios.controller';
 
 const router = Router();
@@ -40,5 +41,6 @@ router.post  ('/:id/iniciar', verificarAutenticacion, iniciarEjercicio);
 router.get   ('/:id/mi-progreso', verificarAutenticacion, obtenerMiProgreso);
 router.patch ('/:id/movimiento', verificarAutenticacion, actualizarMovimiento);
 router.patch ('/:id/comentario-alumno', verificarAutenticacion, guardarComentarioAlumno);
+router.patch('/:id/tiempo', verificarAutenticacion, guardarTiempo);
 
 export default router;
