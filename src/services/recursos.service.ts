@@ -101,8 +101,8 @@ export const generarUrlDescarga = async (archivoId: string) => {
 };
 
 export const obtenerArchivosDeCarpeta = async (
-  carpetaId: string, 
-  esProfesor: boolean, 
+  carpetaId: string,
+  esProfesor: boolean,
   usuarioId?: string
 ) => {
   let query = supabaseAdmin
@@ -117,82 +117,93 @@ export const obtenerArchivosDeCarpeta = async (
         solucion_pgn,
         respuestas_alumnos (
           alumno_id,
-          estado
+          estado,
+          puntuacion
         )
       )
     `)
     .eq('carpeta_id', carpetaId)
     .order('created_at', { ascending: false });
-
+ 
   if (!esProfesor) {
     query = query.eq('visible', true);
   }
-
+ 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-
+ 
   const ahora = new Date();
-
-  // Mapear y filtrar
+ 
   const archivosMapeados = data.map((archivo: any) => {
     const ejConfig = Array.isArray(archivo.ejercicios) ? archivo.ejercicios[0] : archivo.ejercicios;
-    
-    // Si es alumno y no tiene solución, no lo ve
+ 
     if (!esProfesor && ejConfig && !ejConfig.solucion_pgn) {
       return null;
     }
-
-    let estado = undefined;
+ 
+    let estado_alumno    = undefined;
+    let puntuacion_alumno = undefined;
+ 
     if (ejConfig && !esProfesor && usuarioId) {
       const resp = ejConfig.respuestas_alumnos?.find((r: any) => r.alumno_id === usuarioId);
-      estado = resp ? resp.estado : 'NO_INICIADO';
+      if (resp) {
+        estado_alumno     = resp.estado;
+        puntuacion_alumno = resp.puntuacion ?? null;
+      } else {
+        estado_alumno = 'NO_INICIADO';
+      }
     }
-
+ 
     return {
       ...archivo,
       ejercicios: undefined,
       metadata_ejercicio: ejConfig ? {
-        id_ejercicio: ejConfig.id,
-        fecha_inicio: ejConfig.fecha_inicio,
-        fecha_entrega: ejConfig.fecha_entrega,
-        solucion_pgn: ejConfig.solucion_pgn,
-        estado_alumno: estado
+        id_ejercicio:      ejConfig.id,
+        fecha_inicio:      ejConfig.fecha_inicio,
+        fecha_entrega:     ejConfig.fecha_entrega,
+        solucion_pgn:      ejConfig.solucion_pgn,
+        estado_alumno,
+        puntuacion_alumno,
       } : undefined
     };
   }).filter((archivo: any) => archivo !== null);
-
-  // Ordenar la lista resultante
+ 
   return archivosMapeados.sort((a: any, b: any) => {
     const obtenerPrioridad = (archivo: any) => {
       const metaEj = archivo.metadata_ejercicio;
-      
-      // Prioridad 4: Archivos normales (no son ejercicios)
       if (!metaEj) return 4;
-
       const { solucion_pgn, fecha_inicio, fecha_entrega } = metaEj;
-
-      // Prioridad 0: Sin solución (Lo más urgente)
       if (!solucion_pgn) return 0;
-
-      // Prioridad 2: Próximamente (Futuro)
       if (fecha_inicio && new Date(fecha_inicio) > ahora) return 2;
-
-      // Prioridad 3: Finalizado (Pasado)
       if (fecha_entrega && new Date(fecha_entrega) < ahora) return 3;
-
-      // Prioridad 1: Activos
-      return 1;
+      return 1; // Activo
     };
-
+ 
+    // Dentro de los Activos (prioridad 1), sub-ordenar por estado del alumno:
+    // EN_PROGRESO (0) → NO_INICIADO (1) → COMPLETADO (2)
+    const obtenerSubPrioridad = (archivo: any) => {
+      const metaEj = archivo.metadata_ejercicio;
+      if (!metaEj) return 0;
+      switch (metaEj.estado_alumno) {
+        case 'EN_PROGRESO': return 0;
+        case 'NO_INICIADO': return 1;
+        case 'COMPLETADO':  return 2;
+        default:            return 1;
+      }
+    };
+ 
     const prioridadA = obtenerPrioridad(a);
     const prioridadB = obtenerPrioridad(b);
-
-    // Ordenar por estado primero
-    if (prioridadA !== prioridadB) {
-      return prioridadA - prioridadB;
+ 
+    if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+ 
+    // Mismo grupo - sub-ordenar solo dentro de Activos
+    if (prioridadA === 1) {
+      const subA = obtenerSubPrioridad(a);
+      const subB = obtenerSubPrioridad(b);
+      if (subA !== subB) return subA - subB;
     }
-
-    // Si tienen el mismo estado, ordenar por fecha de creación (los más nuevos arriba)
+ 
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 };
