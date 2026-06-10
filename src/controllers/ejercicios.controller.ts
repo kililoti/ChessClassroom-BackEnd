@@ -226,16 +226,57 @@ export const evaluarAlumno = async (req: Request, res: Response): Promise<void> 
     const { respuesta_id } = req.params;
     const profesor_id      = (req as any).usuario?.id;
     const { puntuacion, comentario } = req.body;
-
+ 
     if (!respuesta_id) { res.status(400).json({ success: false, error: 'ID de respuesta inválido.' }); return; }
     if (puntuacion === undefined) { res.status(400).json({ success: false, error: 'La puntuación es obligatoria.' }); return; }
+ 
+    // Obtener la respuesta y la fecha de entrega del ejercicio
+    const { data: respuesta, error: errResp } = await supabaseAdmin
+      .from('respuestas_alumnos')
+      .select('ejercicio_id')
+      .eq('id', respuesta_id)
+      .single();
+ 
+    if (errResp || !respuesta) {
+      res.status(404).json({ success: false, error: 'Respuesta no encontrada.' });
+      return;
+    }
+ 
+    const { data: ejercicio } = await supabaseAdmin
+      .from('ejercicios')
+      .select('fecha_entrega')
+      .eq('id', respuesta.ejercicio_id)
+      .single();
+ 
+    const fechaVencida = ejercicio?.fecha_entrega
+      ? new Date() > new Date(ejercicio.fecha_entrega)
+      : false;
+ 
+    // Obtener también el estado de la respuesta
+    const { data: respuestaEstado } = await supabaseAdmin
+      .from('respuestas_alumnos')
+      .select('estado')
+      .eq('id', respuesta_id)
+      .single();
+ 
+    const alumnoCompletó = respuestaEstado?.estado === 'COMPLETADO';
+ 
+    if (!alumnoCompletó && !fechaVencida) {
+      res.status(403).json({
+        success: false,
+        error: 'Solo se puede evaluar cuando el alumno ha completado el ejercicio o ha pasado la fecha de entrega.',
+      });
+      return;
+    }
 
     if (!respuesta_id || typeof respuesta_id !== 'string') {
       res.status(400).json({ success: false, error: 'ID de respuesta inválido.' });
       return;
     }
-
-    const evaluacion = await ejerciciosService.evaluarRespuesta(respuesta_id, profesor_id, puntuacion, comentario);
+    
+    const evaluacion = await ejerciciosService.evaluarRespuesta(
+      respuesta_id, profesor_id, puntuacion, comentario
+    );
     res.status(200).json({ success: true, evaluacion });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
