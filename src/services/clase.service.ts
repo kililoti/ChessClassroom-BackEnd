@@ -209,4 +209,34 @@ export class ClaseService {
       salaIdPrincipal: salaId
     };
   }
+
+  // Obtener todos los alumnos de una clase con sus datos de usuario
+static async getAlumnosPorClase(claseId: string) {
+  const { data, error } = await supabase
+    .from('clase_alumnos')
+    .select(`
+      alumno_id,
+      fecha_inscripcion,
+      usuarios!inner(
+        id,
+        nombre,
+        apellidos,
+        correo,
+        foto
+      )
+    `)
+    .eq('clase_id', claseId);
+
+  if (error) throw new Error(`Error al obtener alumnos: ${error.message}`);
+
+  // Aplanar el resultado para devolver un array limpio de alumnos
+  return data.map((item: any) => ({
+    id: item.usuarios.id,
+    nombre: item.usuarios.nombre,
+    apellidos: item.usuarios.apellidos,
+    correo: item.usuarios.correo,
+    foto: item.usuarios.foto,
+    fecha_inscripcion: item.fecha_inscripcion,
+  }));
+}
 }
