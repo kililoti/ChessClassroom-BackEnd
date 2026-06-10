@@ -151,7 +151,6 @@ export const asignarEjercicio = async (archivoId: string, asignado: boolean) => 
 // INICIAR EJERCICIO (ALUMNO)
 
 export const iniciarEjercicioAlumno = async (ejercicioId: string, alumnoId: string) => {
-  // Si ya existe un intento, devolver el existente (no reiniciar el timer)
   const { data: existente } = await supabaseAdmin
     .from('respuestas_alumnos')
     .select('*')
@@ -159,15 +158,32 @@ export const iniciarEjercicioAlumno = async (ejercicioId: string, alumnoId: stri
     .eq('alumno_id', alumnoId)
     .single();
 
-  if (existente) return existente;
+  if (existente) {
 
-  // Primera vez, arrancar el timer
+    if (!existente.fecha_primer_acceso) {
+      const { data: actualizado, error } = await supabaseAdmin
+        .from('respuestas_alumnos')
+        .update({
+          fecha_primer_acceso: new Date().toISOString(),
+          estado: 'EN_PROGRESO',
+        })
+        .eq('id', existente.id)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Error al iniciar el ejercicio: ${error.message}`);
+      return actualizado;
+    }
+
+    return existente;
+  }
+
   const { data: nuevo, error } = await supabaseAdmin
     .from('respuestas_alumnos')
     .insert({
-      ejercicio_id:       ejercicioId,
-      alumno_id:          alumnoId,
-      estado:             'EN_PROGRESO',
+      ejercicio_id:        ejercicioId,
+      alumno_id:           alumnoId,
+      estado:              'EN_PROGRESO',
       fecha_primer_acceso: new Date().toISOString(),
     })
     .select()
@@ -286,17 +302,29 @@ export const guardarComentarioAlumno = async (
 
 // OBTENER RESPUESTAS (PROFESOR)
 export const obtenerRespuestasDeEjercicio = async (ejercicioId: string) => {
-  const { data, error } = await supabaseAdmin
+  const { data: respuestas, error } = await supabaseAdmin
     .from('respuestas_alumnos')
-    .select(`
-      *,
-      alumno:usuarios!alumno_id(nombre, apellidos)
-    `)
+    .select('*')
     .eq('ejercicio_id', ejercicioId)
     .order('fecha_primer_acceso', { ascending: true, nullsFirst: false });
-
+ 
   if (error) throw new Error(`Error obteniendo respuestas: ${error.message}`);
-  return data;
+  if (!respuestas || respuestas.length === 0) return [];
+ 
+  const alumnoIds = [...new Set(respuestas.map(r => r.alumno_id))];
+  const { data: usuarios } = await supabaseAdmin
+    .from('usuarios')
+    .select('id, nombre, apellidos')
+    .in('id', alumnoIds);
+ 
+  const mapaUsuarios = Object.fromEntries(
+    (usuarios ?? []).map(u => [u.id, { nombre: u.nombre, apellidos: u.apellidos }])
+  );
+ 
+  return respuestas.map(r => ({
+    ...r,
+    alumno: mapaUsuarios[r.alumno_id] ?? { nombre: 'Alumno', apellidos: 'desconocido' },
+  }));
 };
 
 // EVALUAR RESPUESTA (PROFESOR)
