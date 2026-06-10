@@ -277,7 +277,7 @@ export const guardarComentarioAlumno = async (
 ) => {
 
   // VERIFICAR SI HA VENCIDO
-  const { data: ejercicio } = await supabaseAdmin
+/*   const { data: ejercicio } = await supabaseAdmin
     .from('ejercicios')
     .select('fecha_entrega')
     .eq('id', ejercicioId)
@@ -285,7 +285,7 @@ export const guardarComentarioAlumno = async (
 
   if (ejercicio?.fecha_entrega && new Date() > new Date(ejercicio.fecha_entrega)) {
     throw new Error('EJERCICIO_VENCIDO');
-  }
+  } */
 
   // CONTINUAR CON EL GUARDADO ORIGINAL
   const { data, error } = await supabaseAdmin
