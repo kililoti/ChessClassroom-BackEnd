@@ -112,4 +112,14 @@ export class ClaseController {
       res.status(404).json({ error: error.message });
     }
   }
+
+  static async listarAlumnosPorClase(req: Request, res: Response): Promise<void> {
+  try {
+    const claseId = req.params.claseId as string;
+    const alumnos = await ClaseService.getAlumnosPorClase(claseId);
+    res.status(200).json(alumnos);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}
 }

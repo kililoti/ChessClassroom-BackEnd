@@ -58,3 +58,70 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
     });
   }
 };
+
+// Verifica que el usuario autenticado tiene rol de profesor
+export const verificarProfesor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const usuario = (req as any).usuario;
+
+    if (!usuario) {
+      res.status(401).json({ success: false, message: 'Usuario no autenticado.' });
+      return;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .select('rol')
+      .eq('id', usuario.id)
+      .single();
+
+    if (error || !data) {
+      res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+      return;
+    }
+
+    if (data.rol !== 'profesor') {
+      res.status(403).json({ success: false, message: 'Acceso restringido a profesores.' });
+      return;
+    }
+
+    // Inyectamos el rol para usarlo después si hace falta
+    (req as any).usuario.rol = data.rol;
+    next();
+
+  } catch (error) {
+    console.error('Error en verificarProfesor:', error);
+    res.status(500).json({ success: false, message: 'Error al verificar el rol.' });
+  }
+};
+
+// Verifica que el profesor autenticado pertenece a la clase indicada
+export const verificarProfesorDeClase = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const usuario = (req as any).usuario;
+    const claseId = req.body.clase_id || req.params.claseId;
+
+    if (!claseId) {
+      res.status(400).json({ success: false, message: 'clase_id no proporcionado.' });
+      return;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('clase_profesores')
+      .select('clase_id')
+      .eq('clase_id', claseId)
+      .eq('profesor_id', usuario.id)
+      .single();
+
+    if (error || !data) {
+      res.status(403).json({ success: false, message: 'No eres profesor de esta clase.' });
+      return;
+    }
+
+    next();
+
+  } catch (error) {
+    console.error('Error en verificarProfesorDeClase:', error);
+    res.status(500).json({ success: false, message: 'Error al verificar la clase.' });
+  }
+};
