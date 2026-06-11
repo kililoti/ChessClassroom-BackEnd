@@ -4,6 +4,7 @@ import { verificarAutenticacion } from '../middlewares/auth.middleware';
 import {
   subirEjercicio,
   obtenerEjercicio,
+  obtenerEjerciciosPorArchivo,
   actualizarSolucion,
   actualizarFechas,
   asignarEjercicio,
@@ -26,7 +27,9 @@ const upload = multer({
 // PROFESOR
 router.patch('/respuestas/:respuesta_id/evaluar', verificarAutenticacion, evaluarAlumno);
 
-// RUTAS POR ARCHIVO ID
+router.get('/archivo/:archivo_id', verificarAutenticacion, obtenerEjerciciosPorArchivo);
+
+// RUTAS POR EJERCICIO UUID
 
 // PROFESOR
 router.post  ('/', verificarAutenticacion, upload.single('file'), subirEjercicio);
@@ -41,6 +44,6 @@ router.post  ('/:id/iniciar', verificarAutenticacion, iniciarEjercicio);
 router.get   ('/:id/mi-progreso', verificarAutenticacion, obtenerMiProgreso);
 router.patch ('/:id/movimiento', verificarAutenticacion, actualizarMovimiento);
 router.patch ('/:id/comentario-alumno', verificarAutenticacion, guardarComentarioAlumno);
-router.patch('/:id/tiempo', verificarAutenticacion, guardarTiempo);
+router.patch ('/:id/tiempo', verificarAutenticacion, guardarTiempo);
 
 export default router;
