@@ -176,14 +176,15 @@ export const obtenerArchivosDeCarpeta = async (
   return archivosMapeados.sort((a: any, b: any) => {
     const obtenerPrioridad = (archivo: any) => {
       const metaEj = archivo.metadata_ejercicio;
-      if (!metaEj) return 4;
+      if (!metaEj) return 5;
       const { solucion_pgn, fecha_inicio, fecha_entrega } = metaEj;
-      if (!solucion_pgn) return 0;
-      if (fecha_inicio && new Date(fecha_inicio) > ahora) return 2;
-      if (fecha_entrega && new Date(fecha_entrega) < ahora) return 3;
-      return 1;
+      if (!solucion_pgn)               return 0; // Sin solución
+      if (!fecha_inicio || !fecha_entrega) return 1; // Sin fechas
+      if (new Date(fecha_inicio) > ahora)  return 3; // Próximamente
+      if (new Date(fecha_entrega) < ahora) return 4; // Finalizado
+      return 2; // Activo
     };
-
+    
     const obtenerSubPrioridad = (archivo: any) => {
       const metaEj = archivo.metadata_ejercicio;
       if (!metaEj) return 0;
