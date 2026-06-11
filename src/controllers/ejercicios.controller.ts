@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import * as ejerciciosService from '../services/ejercicios.service';
 import { supabaseAdmin } from '../config/supabase';
 
-
 // PROFESOR
 
 export const subirEjercicio = async (req: Request, res: Response): Promise<void> => {
@@ -236,6 +235,27 @@ export const evaluarAlumno = async (req: Request, res: Response): Promise<void> 
 
     const evaluacion = await ejerciciosService.evaluarRespuesta(respuesta_id, profesor_id, puntuacion, comentario);
     res.status(200).json({ success: true, evaluacion });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const eliminarEjercicio = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!id || typeof id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID inválido.' }); return;
+    }
+
+    // Borrar respuestas_alumnos asociadas
+    await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', id);
+
+    // Borrar la fila de ejercicios
+    const { error } = await supabaseAdmin.from('ejercicios').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({ success: true, mensaje: 'Ejercicio eliminado.' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

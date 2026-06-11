@@ -15,6 +15,7 @@ import {
   actualizarMovimiento,
   guardarComentarioAlumno,
   guardarTiempo,
+  eliminarEjercicio,
 } from '../controllers/ejercicios.controller';
 
 const router = Router();
@@ -27,6 +28,7 @@ const upload = multer({
 // PROFESOR
 router.patch('/respuestas/:respuesta_id/evaluar', verificarAutenticacion, evaluarAlumno);
 
+// Debe ir ANTES de /:id para que Express no confunda "archivo" con un UUID
 router.get('/archivo/:archivo_id', verificarAutenticacion, obtenerEjerciciosPorArchivo);
 
 // RUTAS POR EJERCICIO UUID
@@ -38,6 +40,7 @@ router.patch ('/:id/solucion', verificarAutenticacion, actualizarSolucion);
 router.patch ('/:id/fechas', verificarAutenticacion, actualizarFechas);
 router.patch ('/:id/asignar', verificarAutenticacion, asignarEjercicio);
 router.get   ('/:id/respuestas', verificarAutenticacion, listarRespuestas);
+router.delete('/:id', verificarAutenticacion, eliminarEjercicio)
 
 // ALUMNO
 router.post  ('/:id/iniciar', verificarAutenticacion, iniciarEjercicio);
