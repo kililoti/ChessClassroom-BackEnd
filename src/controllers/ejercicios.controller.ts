@@ -68,7 +68,6 @@ export const obtenerEjercicio = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// PARA DATABASES: devuelve todos los ejercicios de un archivo
 export const obtenerEjerciciosPorArchivo = async (req: Request, res: Response): Promise<void> => {
   try {
     const { archivo_id } = req.params;
@@ -97,7 +96,7 @@ export const actualizarSolucion = async (req: Request, res: Response): Promise<v
 
     const { data: ejercicio, error: errorBusqueda } = await supabaseAdmin
       .from('ejercicios')
-      .select('id, solucion_pgn')
+      .select('id, solucion_pgn, comentarios_solucion')
       .eq('id', ejercicioId)
       .single();
 
@@ -105,7 +104,15 @@ export const actualizarSolucion = async (req: Request, res: Response): Promise<v
       res.status(404).json({ success: false, error: 'No se encontró la configuración del ejercicio.' }); return;
     }
 
-    const esRegrabacion = ejercicio.solucion_pgn && (ejercicio.solucion_pgn !== solucion_pgn);
+    const pgnCambiado       = ejercicio.solucion_pgn !== solucion_pgn;
+    const comentarioCambiado = ejercicio.comentarios_solucion !== comentarios_solucion;
+
+    if (!pgnCambiado && !comentarioCambiado) {
+      res.status(200).json({ success: true, regrabado: false, asignado: false, mensaje: 'No hay cambios para guardar.' });
+      return;
+    }
+
+    const esRegrabacion = Boolean(ejercicio.solucion_pgn && pgnCambiado);
 
     await supabaseAdmin
       .from('ejercicios')
@@ -113,20 +120,16 @@ export const actualizarSolucion = async (req: Request, res: Response): Promise<v
       .eq('id', ejercicio.id);
 
     if (esRegrabacion) {
-      await supabaseAdmin
-        .from('respuestas_alumnos')
-        .delete()
-        .eq('ejercicio_id', ejercicio.id);
+      await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', ejercicio.id);
     }
 
     const asignado = await ejerciciosService.verificarYAsignarAlumnos(ejercicioId);
 
-    res.status(200).json({
-      success: true,
-      regrabado: esRegrabacion,
-      asignado,
-      mensaje: esRegrabacion ? 'Solución regrabada y progreso reiniciado.' : 'Solución guardada.',
-    });
+    let mensajeFinal = 'Solución guardada con éxito.';
+    if (esRegrabacion) mensajeFinal = 'Solución regrabada y progreso de alumnos reiniciado.';
+    else if (!pgnCambiado && comentarioCambiado) mensajeFinal = 'Comentario actualizado correctamente (progreso mantenido).';
+
+    res.status(200).json({ success: true, regrabado: esRegrabacion, asignado, mensaje: mensajeFinal });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -137,22 +140,19 @@ export const actualizarFechas = async (req: Request, res: Response): Promise<voi
     const ejercicioId = req.params.id;
     const { fecha_inicio, fecha_entrega } = req.body;
 
-    if (fecha_inicio && fecha_entrega && new Date(fecha_inicio) > new Date(fecha_entrega)) {
-      res.status(400).json({ success: false, error: 'La fecha de inicio no puede ser posterior a la de entrega.' }); return;
-    }
-
     if (!ejercicioId || typeof ejercicioId !== 'string') {
       res.status(400).json({ success: false, error: 'ID inválido.' }); return;
     }
 
-    await supabaseAdmin
-      .from('ejercicios')
-      .update({ fecha_inicio, fecha_entrega })
-      .eq('id', ejercicioId);
+    if (fecha_inicio && fecha_entrega && new Date(fecha_inicio) > new Date(fecha_entrega)) {
+      res.status(400).json({ success: false, error: 'La fecha de inicio no puede ser posterior a la de entrega.' }); return;
+    }
 
-    const asignado = await ejerciciosService.verificarYAsignarAlumnos(ejercicioId);
+    const resultado = await ejerciciosService.actualizarFechasYAsignacion(
+      ejercicioId, fecha_inicio || null, fecha_entrega || null
+    );
 
-    res.status(200).json({ success: true, asignado, mensaje: 'Fechas guardadas' });
+    res.status(200).json({ success: true, asignado: resultado.asignado, mensaje: resultado.mensaje });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -168,9 +168,8 @@ export const asignarEjercicio = async (req: Request, res: Response): Promise<voi
     }
 
     if (!id || typeof id !== 'string') {
-      res.status(400).json({ success: false, error: 'ID de ejercicio inválido.' }); return;
+      res.status(400).json({ success: false, error: 'ID inválido.' }); return;
     }
-
     const resultado = await ejerciciosService.asignarEjercicio(id, asignado);
     res.status(200).json({ success: true, ejercicio: resultado });
   } catch (error: any) {
@@ -230,11 +229,30 @@ export const evaluarAlumno = async (req: Request, res: Response): Promise<void> 
     }
 
     if (!respuesta_id || typeof respuesta_id !== 'string') {
-      res.status(400).json({ success: false, error: 'ID de respuesta inválido.' }); return;
+      res.status(400).json({ success: false, error: 'ID inválido.' }); return;
     }
-
     const evaluacion = await ejerciciosService.evaluarRespuesta(respuesta_id, profesor_id, puntuacion, comentario);
     res.status(200).json({ success: true, evaluacion });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Toggle visibilidad de ejercicio individual en database
+export const toggleVisibilidadEjercicio = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const usuario = (req as any).usuario;
+
+    if (usuario?.rol !== 'profesor') {
+      res.status(403).json({ success: false, error: 'No tienes permisos.' }); return;
+    }
+    if (!id || typeof id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID inválido.' }); return;
+    }
+
+    const resultado = await ejerciciosService.toggleVisibilidadEjercicio(id);
+    res.status(200).json({ success: true, ejercicio: resultado });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -248,7 +266,6 @@ export const eliminarEjercicio = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, error: 'ID inválido.' }); return;
     }
 
-    // Comprobar si pertenece a una database (es_base_datos)
     const { data: ejercicio } = await supabaseAdmin
       .from('ejercicios')
       .select('archivo_id, recursos_archivos(metadata)')
@@ -258,16 +275,29 @@ export const eliminarEjercicio = async (req: Request, res: Response): Promise<vo
     const esDatabase = (ejercicio?.recursos_archivos as any)?.metadata?.es_base_datos === true;
 
     if (esDatabase) {
-      // Borrar la partida del PGN físico, reindexear y actualizar metadata
       const resultado = await ejerciciosService.eliminarPartidaDeDatabase(id);
       res.status(200).json({ success: true, mensaje: 'Partida eliminada del archivo.', ...resultado });
     } else {
-      // Ejercicio simple: borrar solo la fila y sus respuestas
       await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', id);
       const { error } = await supabaseAdmin.from('ejercicios').delete().eq('id', id);
       if (error) throw new Error(error.message);
       res.status(200).json({ success: true, mensaje: 'Ejercicio eliminado.' });
     }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const eliminarEjerciciosEnBloque = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ success: false, error: 'Se requiere un array de IDs.' }); return;
+    }
+
+    const resultado = await ejerciciosService.eliminarPartidasDeDatabase(ids);
+    res.status(200).json({ success: true, ...resultado });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

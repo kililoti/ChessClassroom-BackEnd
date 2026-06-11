@@ -93,6 +93,7 @@ export const obtenerEjerciciosPorArchivo = async (
       fecha_inicio,
       fecha_entrega,
       solucion_pgn,
+      visible,
       respuestas_alumnos (
         alumno_id,
         estado,
@@ -105,8 +106,8 @@ export const obtenerEjerciciosPorArchivo = async (
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((ej: any) => {
-    // Si es alumno, ocultar ejercicios sin solución + fecha_inicio + fecha_entrega
-    if (!esProfesor && (!ej.solucion_pgn || !ej.fecha_inicio || !ej.fecha_entrega)) {
+    // Si es alumno, ocultar ejercicios sin solución + fecha_inicio + fecha_entrega, o no visibles
+    if (!esProfesor && (!ej.solucion_pgn || !ej.fecha_inicio || !ej.fecha_entrega || ej.visible === false)) {
       return null;
     }
 
@@ -129,6 +130,7 @@ export const obtenerEjerciciosPorArchivo = async (
       fecha_inicio:     ej.fecha_inicio,
       fecha_entrega:    ej.fecha_entrega,
       solucion_pgn:     ej.solucion_pgn,
+      visible:          ej.visible ?? true,
       estado_alumno,
       puntuacion_alumno,
     };
@@ -189,6 +191,37 @@ export const actualizarFechaEntrega = async (
   return data;
 };
 
+// ACTUALIZAR FECHAS Y ASIGNACIÓN
+
+export const actualizarFechasYAsignacion = async (
+  ejercicioId: string,
+  fechaInicio: string | null,
+  fechaEntrega: string | null
+) => {
+  const { error: errUpdate } = await supabaseAdmin
+    .from('ejercicios')
+    .update({ fecha_inicio: fechaInicio, fecha_entrega: fechaEntrega })
+    .eq('id', ejercicioId);
+
+  if (errUpdate) throw new Error(`Error al actualizar fechas: ${errUpdate.message}`);
+
+  if (!fechaInicio || !fechaEntrega) {
+    const { error: errDelete } = await supabaseAdmin
+      .from('respuestas_alumnos')
+      .delete()
+      .eq('ejercicio_id', ejercicioId);
+
+    if (errDelete) throw new Error(`Error al desasignar alumnos: ${errDelete.message}`);
+
+    await supabaseAdmin.from('ejercicios').update({ asignado: false }).eq('id', ejercicioId);
+
+    return { asignado: false, mensaje: 'Fechas limpiadas y ejercicio desasignado de los alumnos.' };
+  }
+
+  const asignado = await verificarYAsignarAlumnos(ejercicioId);
+  return { asignado, mensaje: 'Fechas guardadas.' };
+};
+
 // ASIGNAR / DESASIGNAR EJERCICIO
 
 export const asignarEjercicio = async (archivoId: string, asignado: boolean) => {
@@ -212,6 +245,51 @@ export const asignarEjercicio = async (archivoId: string, asignado: boolean) => 
   return data;
 };
 
+// VERIFICAR Y ASIGNAR ALUMNOS
+
+export const verificarYAsignarAlumnos = async (ejercicioId: string) => {
+  const { data: config } = await supabaseAdmin
+    .from('ejercicios')
+    .select(`
+      id,
+      solucion_pgn,
+      fecha_inicio,
+      fecha_entrega,
+      archivo:recursos_archivos(
+        carpeta:recursos_carpetas(clase_id)
+      )
+    `)
+    .eq('id', ejercicioId)
+    .single();
+
+  if (!config || !config.solucion_pgn || !config.fecha_inicio || !config.fecha_entrega) return false;
+
+  const claseId = (config.archivo as any)?.carpeta?.clase_id;
+  if (!claseId) return false;
+
+  const { data: alumnos } = await supabaseAdmin
+    .from('clase_alumnos')
+    .select('alumno_id')
+    .eq('clase_id', claseId);
+
+  if (!alumnos || alumnos.length === 0) return false;
+
+  const asignaciones = alumnos.map(a => ({
+    ejercicio_id: config.id,
+    alumno_id:    a.alumno_id,
+    estado:       'NO_INICIADO',
+  }));
+
+  const { error } = await supabaseAdmin
+    .from('respuestas_alumnos')
+    .upsert(asignaciones, { onConflict: 'ejercicio_id, alumno_id', ignoreDuplicates: true });
+
+  if (error) console.error('Error en auto-asignación:', error);
+
+  await supabaseAdmin.from('ejercicios').update({ asignado: true }).eq('id', ejercicioId);
+  return true;
+};
+
 // INICIAR EJERCICIO (ALUMNO)
 
 export const iniciarEjercicioAlumno = async (ejercicioId: string, alumnoId: string) => {
@@ -226,10 +304,7 @@ export const iniciarEjercicioAlumno = async (ejercicioId: string, alumnoId: stri
     if (!existente.fecha_primer_acceso) {
       const { data: actualizado, error } = await supabaseAdmin
         .from('respuestas_alumnos')
-        .update({
-          fecha_primer_acceso: new Date().toISOString(),
-          estado: 'EN_PROGRESO',
-        })
+        .update({ fecha_primer_acceso: new Date().toISOString(), estado: 'EN_PROGRESO' })
         .eq('id', existente.id)
         .select()
         .single();
@@ -287,9 +362,7 @@ export const registrarMovimientoAlumno = async (
   if (errEj) throw new Error(`Error al verificar ejercicio: ${errEj.message}`);
 
   if (ejercicio?.fecha_entrega) {
-    const vencimiento = new Date(ejercicio.fecha_entrega);
-    const ahora = new Date();
-    if (ahora > vencimiento) throw new Error('EJERCICIO_VENCIDO');
+    if (new Date() > new Date(ejercicio.fecha_entrega)) throw new Error('EJERCICIO_VENCIDO');
   }
 
   const updateData: Record<string, any> = { pgn_ultimo_movimiento: pgnActualizado };
@@ -297,7 +370,7 @@ export const registrarMovimientoAlumno = async (
   if (esCorrecto) {
     updateData.pgn_avanzado_correcto = pgnActualizado;
     if (esFinal) {
-      updateData.estado = 'COMPLETADO';
+      updateData.estado           = 'COMPLETADO';
       updateData.fecha_completado = new Date().toISOString();
     }
   }
@@ -311,10 +384,7 @@ export const registrarMovimientoAlumno = async (
   if (error) throw new Error(`Error al guardar movimiento: ${error.message}`);
 
   if (!esCorrecto) {
-    await supabaseAdmin.rpc('incrementar_intentos_fallidos', {
-      ej_id: ejercicioId,
-      al_id: alumnoId,
-    });
+    await supabaseAdmin.rpc('incrementar_intentos_fallidos', { ej_id: ejercicioId, al_id: alumnoId });
   }
 
   return true;
@@ -390,52 +460,32 @@ export const evaluarRespuesta = async (
   return data;
 };
 
-// VERIFICAR Y ASIGNAR ALUMNOS
+// TOGGLE VISIBILIDAD DE EJERCICIO INDIVIDUAL
+// Permite ocultar/mostrar ejercicios individuales de una database.
 
-export const verificarYAsignarAlumnos = async (ejercicioId: string) => {
-  const { data: config } = await supabaseAdmin
+export const toggleVisibilidadEjercicio = async (ejercicioId: string) => {
+  const { data: ejercicio, error: errGet } = await supabaseAdmin
     .from('ejercicios')
-    .select(`
-      id,
-      solucion_pgn,
-      fecha_inicio,
-      fecha_entrega,
-      archivo:recursos_archivos(
-        carpeta:recursos_carpetas(clase_id)
-      )
-    `)
+    .select('visible')
     .eq('id', ejercicioId)
     .single();
 
-  if (!config || !config.solucion_pgn || !config.fecha_inicio || !config.fecha_entrega) return false;
+  if (errGet || !ejercicio) throw new Error('Ejercicio no encontrado.');
 
-  const claseId = (config.archivo as any)?.carpeta?.clase_id;
-  if (!claseId) return false;
+  const nuevoVisible = !(ejercicio.visible ?? true);
 
-  const { data: alumnos } = await supabaseAdmin
-    .from('clase_alumnos')
-    .select('alumno_id')
-    .eq('clase_id', claseId);
+  const { data, error } = await supabaseAdmin
+    .from('ejercicios')
+    .update({ visible: nuevoVisible })
+    .eq('id', ejercicioId)
+    .select('id, visible')
+    .single();
 
-  if (!alumnos || alumnos.length === 0) return false;
-
-  const asignaciones = alumnos.map(a => ({
-    ejercicio_id: config.id,
-    alumno_id:    a.alumno_id,
-    estado:       'NO_INICIADO',
-  }));
-
-  const { error } = await supabaseAdmin
-    .from('respuestas_alumnos')
-    .upsert(asignaciones, { onConflict: 'ejercicio_id, alumno_id', ignoreDuplicates: true });
-
-  if (error) console.error('Error en auto-asignación:', error);
-  return true;
+  if (error) throw new Error(error.message);
+  return data;
 };
 
-
 // ELIMINAR PARTIDA DE DATABASE
-// Borra la partida del PGN físico, actualiza metadata, reindexea y borra la fila.
 
 function dividirPgn(pgn: string): string[] {
   return pgn.split(/(?=\[Event\s)/g).filter(b => b.trim().length > 0);
@@ -459,7 +509,6 @@ function parsearPartidasMetadata(bloques: string[]): any[] {
 }
 
 export const eliminarPartidaDeDatabase = async (ejercicioId: string) => {
-  // 1. Obtener el ejercicio con su archivo
   const { data: ejercicio, error: errEj } = await supabaseAdmin
     .from('ejercicios')
     .select('id, archivo_id, partida_index')
@@ -470,7 +519,6 @@ export const eliminarPartidaDeDatabase = async (ejercicioId: string) => {
 
   const { archivo_id, partida_index } = ejercicio;
 
-  // 2. Obtener el archivo para el storage_path y metadata
   const { data: archivo, error: errArc } = await supabaseAdmin
     .from('recursos_archivos')
     .select('storage_path, metadata')
@@ -479,7 +527,6 @@ export const eliminarPartidaDeDatabase = async (ejercicioId: string) => {
 
   if (errArc || !archivo) throw new Error('Archivo no encontrado.');
 
-  // 3. Descargar el PGN completo del storage
   const { data: fileData, error: errDown } = await supabaseAdmin.storage
     .from('recursos_educativos')
     .download(archivo.storage_path);
@@ -493,59 +540,114 @@ export const eliminarPartidaDeDatabase = async (ejercicioId: string) => {
     throw new Error(`partida_index ${partida_index} fuera de rango (${bloques.length} partidas).`);
   }
 
-  // 4. Eliminar el bloque de la partida
   bloques.splice(partida_index, 1);
 
-  // 5. Resubir el PGN modificado
-  const nuevoContenido = bloques.join('\n');
-  const nuevoBuffer    = Buffer.from(nuevoContenido, 'utf-8');
+  const nuevoBuffer = Buffer.from(bloques.join('\n'), 'utf-8');
 
   const { error: errUp } = await supabaseAdmin.storage
     .from('recursos_educativos')
-    .update(archivo.storage_path, nuevoBuffer, {
-      contentType: 'text/plain',
-      upsert:      true,
+    .update(archivo.storage_path, nuevoBuffer, { contentType: 'text/plain', upsert: true });
+
+  if (errUp) throw new Error(`Error al resubir el PGN: ${errUp.message}`);
+
+  const nuevasPartidas = parsearPartidasMetadata(bloques);
+  await supabaseAdmin
+    .from('recursos_archivos')
+    .update({ metadata: { ...(archivo.metadata ?? {}), partidas: nuevasPartidas, total_partidas: bloques.length } })
+    .eq('id', archivo_id);
+
+  await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', ejercicioId);
+  await supabaseAdmin.from('ejercicios').delete().eq('id', ejercicioId);
+
+  const { data: siguientes } = await supabaseAdmin
+    .from('ejercicios')
+    .select('*')
+    .eq('archivo_id', archivo_id)
+    .gt('partida_index', partida_index)
+    .order('partida_index', { ascending: true });
+
+  if (siguientes && siguientes.length > 0) {
+    const ejerciciosAActualizar = siguientes.map(ej => ({ ...ej, partida_index: ej.partida_index - 1 }));
+    const { error: errBulk } = await supabaseAdmin.from('ejercicios').upsert(ejerciciosAActualizar);
+    if (errBulk) throw new Error(`Error al reindexar las partidas: ${errBulk.message}`);
+  }
+
+  return { bloquesBorrados: 1, partidasRestantes: bloques.length };
+};
+
+// ELIMINAR MÚLTIPLES PARTIDAS DE DATABASE
+
+export const eliminarPartidasDeDatabase = async (ejercicioIds: string[]) => {
+  if (ejercicioIds.length === 0) return;
+
+  const { data: ejercicios, error: errEjs } = await supabaseAdmin
+    .from('ejercicios')
+    .select('id, archivo_id, partida_index')
+    .in('id', ejercicioIds);
+
+  if (errEjs || !ejercicios || ejercicios.length === 0) throw new Error('Ejercicios no encontrados.');
+
+  const archivoIds = [...new Set(ejercicios.map((e: any) => e.archivo_id))];
+  if (archivoIds.length > 1) throw new Error('Solo se pueden borrar partidas del mismo archivo a la vez.');
+  const archivo_id = archivoIds[0];
+
+  const { data: archivo, error: errArc } = await supabaseAdmin
+    .from('recursos_archivos')
+    .select('storage_path, metadata')
+    .eq('id', archivo_id)
+    .single();
+
+  if (errArc || !archivo) throw new Error('Archivo no encontrado.');
+
+  const { data: fileData, error: errDown } = await supabaseAdmin.storage
+    .from('recursos_educativos')
+    .download(archivo.storage_path);
+
+  if (errDown || !fileData) throw new Error(`Error al descargar el PGN: ${errDown?.message}`);
+
+  const pgnCompleto      = await fileData.text();
+  const bloques          = dividirPgn(pgnCompleto);
+  const indicesAEliminar = new Set(ejercicios.map((e: any) => e.partida_index));
+  const bloquesRestantes = bloques.filter((_: string, i: number) => !indicesAEliminar.has(i));
+
+  const { error: errUp } = await supabaseAdmin.storage
+    .from('recursos_educativos')
+    .update(archivo.storage_path, Buffer.from(bloquesRestantes.join('\n'), 'utf-8'), {
+      contentType: 'text/plain', upsert: true,
     });
 
   if (errUp) throw new Error(`Error al resubir el PGN: ${errUp.message}`);
 
-  // 6. Actualizar metadata en recursos_archivos
-  const nuevasPartidas    = parsearPartidasMetadata(bloques);
-  const metadataActual    = archivo.metadata ?? {};
-  const nuevaMetadata     = {
-    ...metadataActual,
-    partidas:       nuevasPartidas,
-    total_partidas: bloques.length,
-  };
-
+  const nuevasPartidas = parsearPartidasMetadata(bloquesRestantes);
   await supabaseAdmin
     .from('recursos_archivos')
-    .update({ metadata: nuevaMetadata })
+    .update({ metadata: { ...(archivo.metadata ?? {}), partidas: nuevasPartidas, total_partidas: bloquesRestantes.length } })
     .eq('id', archivo_id);
 
-  // 7. Borrar respuestas_alumnos y la fila de ejercicios de la partida eliminada
-  await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', ejercicioId);
-  await supabaseAdmin.from('ejercicios').delete().eq('id', ejercicioId);
+  await supabaseAdmin.from('respuestas_alumnos').delete().in('ejercicio_id', ejercicioIds);
+  await supabaseAdmin.from('ejercicios').delete().in('id', ejercicioIds);
 
-  // 8. Decrementar partida_index de las partidas que iban después
-  const { data: siguientes } = await supabaseAdmin
+  const { data: restantes } = await supabaseAdmin
     .from('ejercicios')
-    .select('id, partida_index')
+    .select('*')
     .eq('archivo_id', archivo_id)
-    .gt('partida_index', partida_index);
+    .order('partida_index', { ascending: true });
 
-  if (siguientes && siguientes.length > 0) {
-    await Promise.all(
-      siguientes.map((ej: any) =>
-        supabaseAdmin
-          .from('ejercicios')
-          .update({ partida_index: ej.partida_index - 1 })
-          .eq('id', ej.id)
-      )
-    );
+  if (restantes && restantes.length > 0) {
+    const indicesEliminadosOrdenados = [...indicesAEliminar].sort((a, b) => a - b);
+
+    const ejerciciosAActualizar = restantes.flatMap((ej: any) => {
+      const desplazamiento = indicesEliminadosOrdenados.filter((i: number) => i < ej.partida_index).length;
+      return desplazamiento > 0 ? [{ ...ej, partida_index: ej.partida_index - desplazamiento }] : [];
+    });
+
+    if (ejerciciosAActualizar.length > 0) {
+      const { error: errBulk } = await supabaseAdmin.from('ejercicios').upsert(ejerciciosAActualizar);
+      if (errBulk) throw new Error(`Error en la reindexación masiva: ${errBulk.message}`);
+    }
   }
 
-  return { bloquesBorrados: 1, partidasRestantes: bloques.length };
+  return { borrados: ejercicioIds.length, restantes: bloquesRestantes.length };
 };
 
 // GUARDAR TIEMPO (ALUMNO)
