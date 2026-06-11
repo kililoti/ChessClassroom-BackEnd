@@ -134,6 +134,7 @@ export const obtenerEjerciciosPorArchivo = async (
     };
   }).filter((ej: any) => ej !== null);
 };
+
 // ACTUALIZAR SOLUCIÓN (PROFESOR)
 
 export const actualizarSolucion = async (
@@ -430,6 +431,121 @@ export const verificarYAsignarAlumnos = async (ejercicioId: string) => {
 
   if (error) console.error('Error en auto-asignación:', error);
   return true;
+};
+
+
+// ELIMINAR PARTIDA DE DATABASE
+// Borra la partida del PGN físico, actualiza metadata, reindexea y borra la fila.
+
+function dividirPgn(pgn: string): string[] {
+  return pgn.split(/(?=\[Event\s)/g).filter(b => b.trim().length > 0);
+}
+
+function parsearPartidasMetadata(bloques: string[]): any[] {
+  return bloques.map((bloque, index) => {
+    const getHeader = (tag: string) => {
+      const match = bloque.match(new RegExp(`\\[${tag}\\s+"([^"]*)"\\]`));
+      return match?.[1] ?? '?';
+    };
+    return {
+      index,
+      evento:    getHeader('Event'),
+      blancas:   getHeader('White'),
+      negras:    getHeader('Black'),
+      fecha:     getHeader('Date'),
+      resultado: getHeader('Result'),
+    };
+  });
+}
+
+export const eliminarPartidaDeDatabase = async (ejercicioId: string) => {
+  // 1. Obtener el ejercicio con su archivo
+  const { data: ejercicio, error: errEj } = await supabaseAdmin
+    .from('ejercicios')
+    .select('id, archivo_id, partida_index')
+    .eq('id', ejercicioId)
+    .single();
+
+  if (errEj || !ejercicio) throw new Error('Ejercicio no encontrado.');
+
+  const { archivo_id, partida_index } = ejercicio;
+
+  // 2. Obtener el archivo para el storage_path y metadata
+  const { data: archivo, error: errArc } = await supabaseAdmin
+    .from('recursos_archivos')
+    .select('storage_path, metadata')
+    .eq('id', archivo_id)
+    .single();
+
+  if (errArc || !archivo) throw new Error('Archivo no encontrado.');
+
+  // 3. Descargar el PGN completo del storage
+  const { data: fileData, error: errDown } = await supabaseAdmin.storage
+    .from('recursos_educativos')
+    .download(archivo.storage_path);
+
+  if (errDown || !fileData) throw new Error(`Error al descargar el PGN: ${errDown?.message}`);
+
+  const pgnCompleto = await fileData.text();
+  const bloques     = dividirPgn(pgnCompleto);
+
+  if (partida_index < 0 || partida_index >= bloques.length) {
+    throw new Error(`partida_index ${partida_index} fuera de rango (${bloques.length} partidas).`);
+  }
+
+  // 4. Eliminar el bloque de la partida
+  bloques.splice(partida_index, 1);
+
+  // 5. Resubir el PGN modificado
+  const nuevoContenido = bloques.join('\n');
+  const nuevoBuffer    = Buffer.from(nuevoContenido, 'utf-8');
+
+  const { error: errUp } = await supabaseAdmin.storage
+    .from('recursos_educativos')
+    .update(archivo.storage_path, nuevoBuffer, {
+      contentType: 'text/plain',
+      upsert:      true,
+    });
+
+  if (errUp) throw new Error(`Error al resubir el PGN: ${errUp.message}`);
+
+  // 6. Actualizar metadata en recursos_archivos
+  const nuevasPartidas    = parsearPartidasMetadata(bloques);
+  const metadataActual    = archivo.metadata ?? {};
+  const nuevaMetadata     = {
+    ...metadataActual,
+    partidas:       nuevasPartidas,
+    total_partidas: bloques.length,
+  };
+
+  await supabaseAdmin
+    .from('recursos_archivos')
+    .update({ metadata: nuevaMetadata })
+    .eq('id', archivo_id);
+
+  // 7. Borrar respuestas_alumnos y la fila de ejercicios de la partida eliminada
+  await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', ejercicioId);
+  await supabaseAdmin.from('ejercicios').delete().eq('id', ejercicioId);
+
+  // 8. Decrementar partida_index de las partidas que iban después
+  const { data: siguientes } = await supabaseAdmin
+    .from('ejercicios')
+    .select('id, partida_index')
+    .eq('archivo_id', archivo_id)
+    .gt('partida_index', partida_index);
+
+  if (siguientes && siguientes.length > 0) {
+    await Promise.all(
+      siguientes.map((ej: any) =>
+        supabaseAdmin
+          .from('ejercicios')
+          .update({ partida_index: ej.partida_index - 1 })
+          .eq('id', ej.id)
+      )
+    );
+  }
+
+  return { bloquesBorrados: 1, partidasRestantes: bloques.length };
 };
 
 // GUARDAR TIEMPO (ALUMNO)

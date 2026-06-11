@@ -248,14 +248,26 @@ export const eliminarEjercicio = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, error: 'ID inválido.' }); return;
     }
 
-    // Borrar respuestas_alumnos asociadas
-    await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', id);
+    // Comprobar si pertenece a una database (es_base_datos)
+    const { data: ejercicio } = await supabaseAdmin
+      .from('ejercicios')
+      .select('archivo_id, recursos_archivos(metadata)')
+      .eq('id', id)
+      .single();
 
-    // Borrar la fila de ejercicios
-    const { error } = await supabaseAdmin.from('ejercicios').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    const esDatabase = (ejercicio?.recursos_archivos as any)?.metadata?.es_base_datos === true;
 
-    res.status(200).json({ success: true, mensaje: 'Ejercicio eliminado.' });
+    if (esDatabase) {
+      // Borrar la partida del PGN físico, reindexear y actualizar metadata
+      const resultado = await ejerciciosService.eliminarPartidaDeDatabase(id);
+      res.status(200).json({ success: true, mensaje: 'Partida eliminada del archivo.', ...resultado });
+    } else {
+      // Ejercicio simple: borrar solo la fila y sus respuestas
+      await supabaseAdmin.from('respuestas_alumnos').delete().eq('ejercicio_id', id);
+      const { error } = await supabaseAdmin.from('ejercicios').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      res.status(200).json({ success: true, mensaje: 'Ejercicio eliminado.' });
+    }
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
