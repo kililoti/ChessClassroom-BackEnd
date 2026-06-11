@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import claseRoutes from './routes/clase.routes';
 import chatRoutes from './routes/chat.routes';
 import recursosRoutes from './routes/recursos.routes';
+import ejerciciosRouter from './routes/ejercicios.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clases', claseRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/recursos', recursosRoutes);
+app.use('/api/ejercicios', ejerciciosRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
