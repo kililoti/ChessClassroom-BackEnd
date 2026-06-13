@@ -125,3 +125,46 @@ export const verificarProfesorDeClase = async (req: Request, res: Response, next
     res.status(500).json({ success: false, message: 'Error al verificar la clase.' });
   }
 };
+
+export const verificarProfesorDeAula = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const usuario = (req as any).usuario;
+    const { aulaId } = req.params as { aulaId: string };
+
+    if (!aulaId) {
+      res.status(400).json({ success: false, message: 'aulaId no proporcionado.' });
+      return;
+    }
+
+    // Buscar el aula para obtener clase_id
+    const { data: aula, error } = await supabaseAdmin
+      .from('aulas_virtuales')
+      .select('clase_id')
+      .eq('id', aulaId)
+      .single();
+
+    if (error || !aula) {
+      res.status(404).json({ success: false, message: 'Aula no encontrada.' });
+      return;
+    }
+
+    // Verificar que es profesor de esa clase
+    const { data, error: errorProfesor } = await supabaseAdmin
+      .from('clase_profesores')
+      .select('clase_id')
+      .eq('clase_id', aula.clase_id)
+      .eq('profesor_id', usuario.id)
+      .single();
+
+    if (errorProfesor || !data) {
+      res.status(403).json({ success: false, message: 'No eres profesor de esta clase.' });
+      return;
+    }
+
+    next();
+
+  } catch (error) {
+    console.error('Error en verificarProfesorDeAula:', error);
+    res.status(500).json({ success: false, message: 'Error al verificar el aula.' });
+  }
+};
