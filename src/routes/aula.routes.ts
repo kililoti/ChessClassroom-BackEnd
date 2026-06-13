@@ -12,7 +12,7 @@ router.get('/:aulaId',        AulaController.obtenerAula);
 router.get('/:aulaId/permisos', AulaController.obtenerPermisosAula);
 
 // Solo el profesor puede modificar
-router.patch('/:aulaId/tablero',     verificarProfesorDeAula, AulaController.actualizarTablero);
+router.patch('/:aulaId/tablero',     AulaController.actualizarTablero);
 router.patch('/:aulaId/orientacion', verificarProfesorDeAula, AulaController.actualizarOrientacion);
 router.patch('/:aulaId/cerrar',      verificarProfesorDeAula, AulaController.cerrarAula);
 
