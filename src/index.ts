@@ -35,7 +35,7 @@ app.use('/api/recursos', recursosRoutes);
 app.use('/api/ejercicios', ejerciciosRouter);
 app.use('/api/aula', aulaRoutes);
 app.use('/api/livekit', livekitRoutes);
-app.use('/api/materiales', materialesRoutes);
+//app.use('/api/materiales', materialesRoutes);
 app.use('/api/eventos-globales', eventosGlobalesRoutes);
 
 app.listen(PORT, () => {
