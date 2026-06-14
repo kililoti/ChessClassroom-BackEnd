@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ClaseController } from '../controllers/clase.controller';
-import { verificarAutenticacion } from '../middlewares/auth.middleware';
+//import { getAlumnos, actualizarAlias, expulsarAlumno } from '../controllers/alumnos.controller';
+import { verificarAutenticacion, verificarProfesor, verificarProfesorDeClase } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -19,5 +20,7 @@ router.get('/:id', ClaseController.obtenerClase);
 
 // Nuevo endpoint: listar alumnos de una clase
 router.get('/:claseId/alumnos', verificarAutenticacion, ClaseController.listarAlumnosPorClase);
+// ── Gestión de alumnos ────────────────────────────────────
+
 
 export default router;

@@ -20,11 +20,14 @@
   "homepage": "https://github.com/kililoti/ChessClassroom-BackEnd#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "@types/fluent-ffmpeg": "^2.1.28",
     "chess.js": "^1.4.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "livekit-server-sdk": "^2.15.4",
+    "fluent-ffmpeg": "^2.1.3",
+    "groq-sdk": "^1.2.1",
     "multer": "^2.1.1",
     "typescript": "^6.0.3"
   },
