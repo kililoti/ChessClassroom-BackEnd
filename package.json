@@ -25,10 +25,11 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "livekit-server-sdk": "^2.15.4",
     "fluent-ffmpeg": "^2.1.3",
     "groq-sdk": "^1.2.1",
+    "livekit-server-sdk": "^2.15.4",
     "multer": "^2.1.1",
+    "readdirp": "^5.0.0",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
