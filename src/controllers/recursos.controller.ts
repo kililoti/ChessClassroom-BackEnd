@@ -44,13 +44,10 @@ export const descargarArchivo = async (req: Request, res: Response): Promise<voi
   }
 };
 
-
-// Usado por el frontend para reconstruir el breadcrumb cuando el usuario accede
-// directamente a una URL de PGN Database: /estudios/abc/db/xyz/
 export const obtenerArchivo = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const usuario = (req as any).usuario;
+    const usuario    = (req as any).usuario;
     const esProfesor = usuario?.rol === 'profesor';
 
     if (!id || typeof id !== 'string') {
@@ -103,6 +100,88 @@ export const borrarArchivo = async (req: Request, res: Response): Promise<void> 
 
     await recursosService.eliminarArchivo(id);
     res.status(200).json({ success: true, message: 'Archivo eliminado correctamente.' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Eliminar múltiples partidas de una database (modo estudio, optimizado)
+export const eliminarPartidasArchivo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { archivo_id } = req.params;
+    const { indices }    = req.body; // array de números
+    const usuario        = (req as any).usuario;
+
+    if (usuario?.rol !== 'profesor') {
+      res.status(403).json({ success: false, error: 'No tienes permisos.' }); return;
+    }
+    if (!archivo_id || !Array.isArray(indices) || indices.length === 0) {
+      res.status(400).json({ success: false, error: 'Parámetros inválidos.' }); return;
+    }
+    if (!archivo_id || typeof archivo_id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+    const resultado = await recursosService.eliminarPartidasDeArchivoEstudio(archivo_id, indices.map(Number));
+    res.status(200).json({ success: true, ...resultado });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Toggle visibilidad de partida individual en database de estudio
+export const toggleVisibilidadPartidaArchivo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.params.partida_index || typeof req.params.partida_index !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+    const { archivo_id } = req.params;
+    const partida_index  = parseInt(req.params.partida_index, 10);
+    const usuario        = (req as any).usuario;
+
+    if (usuario?.rol !== 'profesor') {
+      res.status(403).json({ success: false, error: 'No tienes permisos.' }); return;
+    }
+    if (!archivo_id || isNaN(partida_index)) {
+      res.status(400).json({ success: false, error: 'Parámetros inválidos.' }); return;
+    }
+    if (!archivo_id || typeof archivo_id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+    const resultado = await recursosService.toggleVisibilidadPartida(archivo_id, partida_index);
+    res.status(200).json({ success: true, ...resultado });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Eliminar una partida individual de una database (modo estudio)
+export const eliminarPartidaArchivo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.params.partida_index || typeof req.params.partida_index !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+    const { archivo_id }  = req.params;
+    const partida_index   = parseInt(req.params.partida_index, 10);
+    const usuario         = (req as any).usuario;
+
+    if (usuario?.rol !== 'profesor') {
+      res.status(403).json({ success: false, error: 'No tienes permisos para eliminar partidas.' });
+      return;
+    }
+    if (!archivo_id || isNaN(partida_index)) {
+      res.status(400).json({ success: false, error: 'Parámetros inválidos.' });
+      return;
+    }
+    if (!archivo_id || typeof archivo_id !== 'string') {
+      res.status(400).json({ success: false, error: 'ID de archivo inválido.' });
+      return;
+    }
+    const resultado = await recursosService.eliminarPartidaDeArchivoEstudio(archivo_id, partida_index);
+    res.status(200).json({ success: true, ...resultado });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
