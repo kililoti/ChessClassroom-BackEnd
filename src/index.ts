@@ -9,10 +9,11 @@ import chatRoutes from './routes/chat.routes';
 import objetivosRoutes from './routes/objetivos.routes';
 import rutinasRoutes from './routes/rutinas.routes';
 import recursosRoutes from './routes/recursos.routes';
+import chatIARoutes from './routes/chatbot.routes';
+import materialesRoutes from './routes/materiales.routes';
 import ejerciciosRouter from './routes/ejercicios.routes';
 import aulaRoutes from './routes/aula.routes';
 import livekitRoutes from './routes/livekit.routes';
-//import materialesRoutes from './routes/materiales.routes';
 import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
 
 const app = express();
@@ -32,10 +33,11 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/objetivos', objetivosRoutes);
 app.use('/api/rutinas', rutinasRoutes);
 app.use('/api/recursos', recursosRoutes);
+app.use('/api/chat-ia', chatIARoutes);
+app.use('/api/materiales', materialesRoutes);
 app.use('/api/ejercicios', ejerciciosRouter);
 app.use('/api/aula', aulaRoutes);
 app.use('/api/livekit', livekitRoutes);
-//app.use('/api/materiales', materialesRoutes);
 app.use('/api/eventos-globales', eventosGlobalesRoutes);
 
 app.listen(PORT, () => {

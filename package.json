@@ -29,6 +29,7 @@
     "groq-sdk": "^1.2.1",
     "livekit-server-sdk": "^2.15.4",
     "multer": "^2.1.1",
+    "groq-sdk": "^1.2.1",
     "readdirp": "^5.0.0",
     "typescript": "^6.0.3"
   },
