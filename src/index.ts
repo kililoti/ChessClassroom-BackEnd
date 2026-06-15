@@ -7,6 +7,8 @@ import authRoutes from './routes/auth.routes';
 import claseRoutes from './routes/clase.routes';
 import chatRoutes from './routes/chat.routes';
 import recursosRoutes from './routes/recursos.routes';
+import chatIARoutes from './routes/chatbot.routes';
+import materialesRoutes from './routes/materiales.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +25,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clases', claseRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/recursos', recursosRoutes);
+app.use('/api/chat-ia', chatIARoutes);
+app.use('/api/materiales', materialesRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
