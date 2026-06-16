@@ -27,7 +27,7 @@ router.get    ('/carpetas/:id', verificarAutenticacion, obtenerCarpeta);
 router.patch  ('/carpetas/:id', verificarAutenticacion, toggleVisibilidadCarpeta);
 router.delete ('/carpetas/:id', verificarAutenticacion, borrarCarpeta);
 
-// ARCHIVOS — rutas específicas ANTES de las genéricas con :id
+// ARCHIVOS
 router.get    ('/archivos/carpeta/:carpeta_id', verificarAutenticacion, listarArchivosDeCarpeta);
 // Bulk delete (array de índices) — antes de la ruta con :partida_index
 router.delete ('/archivos/:archivo_id/partidas', verificarAutenticacion, eliminarPartidasArchivo);
@@ -38,7 +38,6 @@ router.delete ('/archivos/:archivo_id/partida/:partida_index', verificarAutentic
 router.get    ('/archivos/:id', verificarAutenticacion, obtenerArchivo);
 router.patch  ('/archivos/:id', verificarAutenticacion, toggleVisibilidadArchivo);
 router.delete ('/archivos/:id', verificarAutenticacion, borrarArchivo);
-
 router.post   ('/upload-pgn', verificarAutenticacion, upload.single('file'), subirArchivoPGN);
 router.get    ('/descargar/:id', verificarAutenticacion, descargarArchivo);
 

@@ -9,6 +9,8 @@ import chatRoutes from './routes/chat.routes';
 import objetivosRoutes from './routes/objetivos.routes';
 import rutinasRoutes from './routes/rutinas.routes';
 import recursosRoutes from './routes/recursos.routes';
+import chatIARoutes from './routes/chatbot.routes';
+import materialesRoutes from './routes/materiales.routes';
 import ejerciciosRouter from './routes/ejercicios.routes';
 import aulaRoutes from './routes/aula.routes';
 import livekitRoutes from './routes/livekit.routes';
@@ -16,6 +18,7 @@ import partidasRoutes from './routes/partidas.routes';
 import invitacionesRoutes from './routes/invitaciones.routes';
 import torneosRoutes from './routes/torneos.routes';
 import { iniciarJobPartidas } from './jobs/partidasJob';
+import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,12 +37,15 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/objetivos', objetivosRoutes);
 app.use('/api/rutinas', rutinasRoutes);
 app.use('/api/recursos', recursosRoutes);
+app.use('/api/chat-ia', chatIARoutes);
+app.use('/api/materiales', materialesRoutes);
 app.use('/api/ejercicios', ejerciciosRouter);
 app.use('/api/aula', aulaRoutes);
 app.use('/api/livekit', livekitRoutes);
 app.use('/api/partidas', partidasRoutes);
 app.use('/api/invitaciones', invitacionesRoutes);
 app.use('/api/torneos', torneosRoutes);
+app.use('/api/eventos-globales', eventosGlobalesRoutes);
 
 iniciarJobPartidas();
 
