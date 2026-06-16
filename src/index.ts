@@ -19,6 +19,7 @@ import invitacionesRoutes from './routes/invitaciones.routes';
 import torneosRoutes from './routes/torneos.routes';
 import { iniciarJobPartidas } from './jobs/partidasJob';
 import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
+import datosRoutes from './routes/datos.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +51,7 @@ app.use('/api/partidas', partidasRoutes);
 app.use('/api/invitaciones', invitacionesRoutes);
 app.use('/api/torneos', torneosRoutes);
 app.use('/api/eventos-globales', eventosGlobalesRoutes);
+app.use('/api/datos', datosRoutes);
 
 iniciarJobPartidas();
 
