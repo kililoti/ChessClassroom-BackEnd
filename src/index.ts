@@ -15,6 +15,7 @@ import ejerciciosRouter from './routes/ejercicios.routes';
 import aulaRoutes from './routes/aula.routes';
 import livekitRoutes from './routes/livekit.routes';
 import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
+import datosRoutes from './routes/datos.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +40,7 @@ app.use('/api/ejercicios', ejerciciosRouter);
 app.use('/api/aula', aulaRoutes);
 app.use('/api/livekit', livekitRoutes);
 app.use('/api/eventos-globales', eventosGlobalesRoutes);
+app.use('/api/datos', datosRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
