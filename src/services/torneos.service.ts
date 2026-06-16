@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabase';
 import { Chess } from 'chess.js';
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// Tipos
 
 export interface CrearTorneoInput {
   clase_id: string;
@@ -16,7 +16,7 @@ export interface CrearTorneoInput {
   participantes?: string[]; // array de usuario_ids
 }
 
-// ─── Crear torneo ─────────────────────────────────────────────────────────────
+// Crear torneo
 
 export const crearTorneo = async (input: CrearTorneoInput) => {
   const {
@@ -32,7 +32,7 @@ export const crearTorneo = async (input: CrearTorneoInput) => {
     participantes = [],
   } = input;
 
-  // 1. Crear el torneo (Se guarda con el estado explícito 'programado')
+  // Crear el torneo (Se guarda con el estado explícito 'programado')
   const { data: torneo, error } = await supabaseAdmin
     .from('torneos')
     .insert({
@@ -45,14 +45,14 @@ export const crearTorneo = async (input: CrearTorneoInput) => {
       pgn_inicial,
       tiempo_ms,
       incremento_ms,
-      estado: 'programado', // 👈 Modificado para asignarlo al crearse correctamente
+      estado: 'programado',
     })
     .select()
     .single();
 
   if (error) throw new Error(`Error al crear torneo: ${error.message}`);
 
-  // 2. Añadir jugadores al torneo si se proporcionan inicialmente
+  // Añadir jugadores al torneo si se proporcionan inicialmente
   if (participantes.length > 0) {
     const participantsSet = new Set<string>(participantes);
     await supabaseAdmin
@@ -63,7 +63,7 @@ export const crearTorneo = async (input: CrearTorneoInput) => {
       })));
   }
 
-  // 3. Crear sala de chat general del torneo (Respeta la restricción: clase_id se omite)
+  // Crear sala de chat general del torneo (Respeta la restricción: clase_id se omite)
   const { data: sala, error: salaError } = await supabaseAdmin
     .from('salas_chat')
     .insert({
@@ -108,7 +108,7 @@ export const crearTorneo = async (input: CrearTorneoInput) => {
   return torneo;
 };
 
-// ─── Listar torneos de una clase ──────────────────────────────────────────────
+// Listar torneos de una clase
 
 export const listarTorneosDeClase = async (
   claseId: string,
@@ -139,7 +139,7 @@ export const listarTorneosDeClase = async (
   return data;
 };
 
-// ─── Obtener torneo por ID con puntuaciones ───────────────────────────────────
+// Obtener torneo por ID con puntuaciones
 
 export const obtenerTorneo = async (torneoId: string) => {
   const { data, error } = await supabaseAdmin
@@ -168,7 +168,7 @@ export const obtenerTorneo = async (torneoId: string) => {
   return { ...data, torneo_participantes: participantes };
 };
 
-// ─── Editar torneo ────────────────────────────────────────────────────────────
+// Editar torneo
 
 export const editarTorneo = async (
   torneoId: string,
@@ -202,7 +202,7 @@ export const editarTorneo = async (
   return data;
 };
 
-// ─── Eliminar torneo ──────────────────────────────────────────────────────────
+// Eliminar torneo
 
 export const eliminarTorneo = async (torneoId: string, esProfesor: boolean) => {
   if (!esProfesor) throw new Error('Solo el profesor puede eliminar torneos.');
@@ -225,7 +225,7 @@ export const eliminarTorneo = async (torneoId: string, esProfesor: boolean) => {
   return true;
 };
 
-// ─── Iniciar torneo ───────────────────────────────────────────────────────────
+// Iniciar torneo
 
 export const iniciarTorneo = async (torneoId: string, esProfesor: boolean) => {
   if (!esProfesor) throw new Error('Solo el profesor puede iniciar torneos.');
@@ -254,7 +254,7 @@ export const iniciarTorneo = async (torneoId: string, esProfesor: boolean) => {
   return data;
 };
 
-// ─── Gestión de participantes ─────────────────────────────────────────────────
+// Gestión de participantes
 
 export const añadirParticipantes = async (
   torneoId: string,
@@ -322,7 +322,7 @@ export const eliminarParticipante = async (
   return true;
 };
 
-// ─── Listar partidas de un torneo ─────────────────────────────────────────────
+// Listar partidas de un torneo
 
 export const listarPartidasDeTorneo = async (
   torneoId: string,
@@ -346,7 +346,7 @@ export const listarPartidasDeTorneo = async (
   return data;
 };
 
-// ─── Ping de presencia ────────────────────────────────────────────────────────
+// Ping de presencia
 
 export const pingParticipante = async (torneoId: string, usuarioId: string) => {
   await supabaseAdmin
@@ -356,7 +356,7 @@ export const pingParticipante = async (torneoId: string, usuarioId: string) => {
     .eq('usuario_id', usuarioId);
 };
 
-// ─── Motor de emparejamiento arena ───────────────────────────────────────────
+// Motor de emparejamiento arena
 
 export const intentarEmparejar = async (torneoId: string) => {
   const torneo = await obtenerTorneo(torneoId);
@@ -510,7 +510,7 @@ export const intentarEmparejar = async (torneoId: string) => {
   };
 };
 
-// ─── Chat del torneo ──────────────────────────────────────────────────────────
+// Chat del torneo
 
 export const obtenerMensajesChat = async (torneoId: string) => {
   const { data: sala } = await supabaseAdmin
