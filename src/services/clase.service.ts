@@ -46,7 +46,8 @@ export class ClaseService {
       .from('salas_chat')
       .insert([
         { clase_id: clase.id, nombre: 'General', tipo: 'clase_general' },
-        { clase_id: clase.id, nombre: 'Material de estudio', tipo: 'clase_estudio' }
+        { clase_id: clase.id, nombre: 'Material de estudio', tipo: 'clase_estudio' },
+        { clase_id: clase.id, nombre: 'Ejercicios', tipo: 'clase_estudio' }
       ])
       .select('id'); // Pedir que devuelva los IDs generados
 
@@ -241,4 +242,69 @@ export class ClaseService {
  
     return alumnosConDatos;
   }
+  // Obtener todos los alumnos de una clase con sus datos de usuario
+static async getAlumnosPorClase(claseId: string) {
+  const { data, error } = await supabase
+    .from('clase_alumnos')
+    .select(`
+      alumno_id,
+      fecha_inscripcion,
+      usuarios!inner(
+        id,
+        nombre,
+        apellidos,
+        correo,
+        foto
+      )
+    `)
+    .eq('clase_id', claseId);
+
+  if (error) throw new Error(`Error al obtener alumnos: ${error.message}`);
+
+  // Aplanar el resultado para devolver un array limpio de alumnos
+  return data.map((item: any) => ({
+    id: item.usuarios.id,
+    nombre: item.usuarios.nombre,
+    apellidos: item.usuarios.apellidos,
+    correo: item.usuarios.correo,
+    foto: item.usuarios.foto,
+    fecha_inscripcion: item.fecha_inscripcion,
+  }));
+}
+
+static async getMiembrosPorClase(claseId: string) {
+  // Obtener alumnos
+  const { data: alumnos, error: errorAlumnos } = await supabase
+    .from('clase_alumnos')
+    .select(`
+      usuarios!inner( id, nombre, apellidos, correo, foto )
+    `)
+    .eq('clase_id', claseId);
+
+  if (errorAlumnos) throw new Error(`Error al obtener alumnos: ${errorAlumnos.message}`);
+
+  // Obtener profesores
+  const { data: profesores, error: errorProfesores } = await supabase
+    .from('clase_profesores')
+    .select(`
+      usuarios!inner( id, nombre, apellidos, correo, foto )
+    `)
+    .eq('clase_id', claseId);
+
+  if (errorProfesores) throw new Error(`Error al obtener profesores: ${errorProfesores.message}`);
+
+  const mapear = (item: any, rol: string) => ({
+    id:        item.usuarios.id,
+    nombre:    item.usuarios.nombre,
+    apellidos: item.usuarios.apellidos,
+    correo:    item.usuarios.correo,
+    foto:      item.usuarios.foto,
+    rol,
+  });
+
+  return [
+    ...(profesores ?? []).map(p => mapear(p, 'profesor')),
+    ...(alumnos   ?? []).map(a => mapear(a, 'alumno')),
+  ];
+}
 }

@@ -24,12 +24,17 @@ router.get('/profesor/:profesorId', ClaseController.listarClasesPorProfesor);
 router.get('/alumno/:alumnoId', ClaseController.listarClasesPorAlumno);
  
 // ── Gestión de alumnos ────────────────────────────────────
-router.get('/:claseId/alumnos', verificarAutenticacion, getAlumnos);
+router.get('/:claseId/alumnos', verificarAutenticacion, getAlumnos, ClaseController.listarAlumnosPorClase);
 router.patch('/:claseId/alumnos/:alumnoId/alias', verificarAutenticacion, verificarProfesor, verificarProfesorDeClase, actualizarAlias);
 router.delete('/:claseId/alumnos/:alumnoId', verificarAutenticacion, verificarProfesor, verificarProfesorDeClase, expulsarAlumno);
  
 // Consultar información de una clase específica Endpoint: GET /api/clases/:id
 // OJO: esta ruta debe ir SIEMPRE al final para no interceptar las rutas con subrutas
 router.get('/:id', ClaseController.obtenerClase);
- 
+
+// Nuevo endpoint: listar alumnos de una clase
+router.get('/:claseId/miembros', verificarAutenticacion, ClaseController.listarMiembrosPorClase);
+// ── Gestión de alumnos ────────────────────────────────────
+
+
 export default router;

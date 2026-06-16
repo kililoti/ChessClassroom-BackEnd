@@ -83,10 +83,17 @@ export const borrarCarpeta = async (req: Request, res: Response): Promise<void> 
 export const listarArchivosDeCarpeta = async (req: Request, res: Response): Promise<void> => {
   try {
     const { carpeta_id } = req.params;
-    const usuario = (req as any).usuario;
-    const esProfesor = usuario?.rol === 'profesor';
+    const { modulo } = req.query;
+    const esProfesor = (req as any).usuario?.rol === 'profesor';
+    const usuarioId = (req as any).usuario?.id;
+
     if (!carpeta_id || typeof carpeta_id !== 'string') { res.status(400).json({ success: false, error: 'ID inválido.' }); return; }
-    const archivos = await recursosService.obtenerArchivosDeCarpeta(carpeta_id, esProfesor);
+    const archivos = await recursosService.obtenerArchivosDeCarpeta(
+        carpeta_id, 
+        esProfesor, 
+        usuarioId,
+        modulo as string
+    );
     res.status(200).json({ success: true, archivos });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
