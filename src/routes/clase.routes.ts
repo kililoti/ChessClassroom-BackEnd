@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ClaseController } from '../controllers/clase.controller';
 import { getAlumnos, actualizarAlias, expulsarAlumno } from '../controllers/alumnos.controller';
-import { verificarAutenticacion, verificarProfesor, verificarProfesorDeClase } from '../middlewares/auth.middleware';
+import { verificarAutenticacion, verificarProfesorDeClase } from '../middlewares/auth.middleware';
  
 const router = Router();
  
@@ -25,8 +25,8 @@ router.get('/alumno/:alumnoId', ClaseController.listarClasesPorAlumno);
  
 // ── Gestión de alumnos ────────────────────────────────────
 router.get('/:claseId/alumnos', verificarAutenticacion, getAlumnos, ClaseController.listarAlumnosPorClase);
-router.patch('/:claseId/alumnos/:alumnoId/alias', verificarAutenticacion, verificarProfesor, verificarProfesorDeClase, actualizarAlias);
-router.delete('/:claseId/alumnos/:alumnoId', verificarAutenticacion, verificarProfesor, verificarProfesorDeClase, expulsarAlumno);
+router.patch('/:claseId/alumnos/:alumnoId/alias', verificarAutenticacion, verificarProfesorDeClase, actualizarAlias);
+router.delete('/:claseId/alumnos/:alumnoId', verificarAutenticacion, verificarProfesorDeClase, expulsarAlumno);
  
 // Consultar información de una clase específica Endpoint: GET /api/clases/:id
 // OJO: esta ruta debe ir SIEMPRE al final para no interceptar las rutas con subrutas

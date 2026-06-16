@@ -55,14 +55,6 @@ export const verificarAutenticacion = async (req: Request, res: Response, next: 
  
 // ── Nuevos middlewares ────────────────────────────────────
  
-export const verificarProfesorDeClase = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const usuario = (req as any).usuario;
-    const claseId = req.params.claseId ?? req.body?.clase_id;
- 
-    if (!claseId) { next(); return; }
- 
-
 // Verifica que el usuario autenticado tiene rol de profesor
 export const verificarProfesor = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
