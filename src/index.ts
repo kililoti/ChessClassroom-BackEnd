@@ -23,11 +23,15 @@ import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configurar CORS (Dar permiso a frontend en el puerto 3000)
+const origenesPermitidos = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: origenesPermitidos,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  credentials: true
+  credentials: true,
 }));
 
 app.use(express.json());
