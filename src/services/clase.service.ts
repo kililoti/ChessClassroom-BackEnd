@@ -211,6 +211,37 @@ export class ClaseService {
     };
   }
 
+  static async getAlumnos(claseId: string) {
+    const { data, error } = await supabase
+      .from('clase_alumnos')
+      .select('alumno_id, alias, fecha_inscripcion')
+      .eq('clase_id', claseId)
+      .order('fecha_inscripcion');
+ 
+    if (error) throw new Error(`Error al obtener alumnos: ${error.message}`);
+    if (!data || data.length === 0) return [];
+ 
+    // Para cada alumno, buscar su nombre y apellidos en la tabla usuarios
+    const alumnosConDatos = await Promise.all(
+      data.map(async (row) => {
+        const { data: usuario } = await supabase
+          .from('usuarios')
+          .select('nombre, apellidos')
+          .eq('id', row.alumno_id)
+          .single();
+ 
+        return {
+          alumno_id: row.alumno_id,
+          nombre: usuario?.nombre ?? 'Sin nombre',
+          apellidos: usuario?.apellidos ?? '',
+          alias: row.alias ?? null,
+          fecha_inscripcion: row.fecha_inscripcion,
+        };
+      })
+    );
+ 
+    return alumnosConDatos;
+  }
   // Obtener todos los alumnos de una clase con sus datos de usuario
 static async getAlumnosPorClase(claseId: string) {
   const { data, error } = await supabase
