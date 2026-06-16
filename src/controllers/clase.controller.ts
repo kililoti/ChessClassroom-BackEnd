@@ -122,4 +122,14 @@ export class ClaseController {
     res.status(500).json({ error: error.message });
   }
 }
+
+  static async listarMiembrosPorClase(req: Request, res: Response): Promise<void> {
+    try {
+      const claseId = req.params.claseId as string;
+      const miembros = await ClaseService.getMiembrosPorClase(claseId);
+      res.status(200).json({ miembros });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

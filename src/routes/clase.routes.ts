@@ -20,6 +20,7 @@ router.get('/:id', ClaseController.obtenerClase);
 
 // Nuevo endpoint: listar alumnos de una clase
 router.get('/:claseId/alumnos', verificarAutenticacion, ClaseController.listarAlumnosPorClase);
+router.get('/:claseId/miembros', verificarAutenticacion, ClaseController.listarMiembrosPorClase);
 // ── Gestión de alumnos ────────────────────────────────────
 
 

@@ -14,6 +14,10 @@ import materialesRoutes from './routes/materiales.routes';
 import ejerciciosRouter from './routes/ejercicios.routes';
 import aulaRoutes from './routes/aula.routes';
 import livekitRoutes from './routes/livekit.routes';
+import partidasRoutes from './routes/partidas.routes';
+import invitacionesRoutes from './routes/invitaciones.routes';
+import torneosRoutes from './routes/torneos.routes';
+import { iniciarJobPartidas } from './jobs/partidasJob';
 import eventosGlobalesRoutes from './routes/eventosGlobales.routes';
 
 const app = express();
@@ -38,7 +42,12 @@ app.use('/api/materiales', materialesRoutes);
 app.use('/api/ejercicios', ejerciciosRouter);
 app.use('/api/aula', aulaRoutes);
 app.use('/api/livekit', livekitRoutes);
+app.use('/api/partidas', partidasRoutes);
+app.use('/api/invitaciones', invitacionesRoutes);
+app.use('/api/torneos', torneosRoutes);
 app.use('/api/eventos-globales', eventosGlobalesRoutes);
+
+iniciarJobPartidas();
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);

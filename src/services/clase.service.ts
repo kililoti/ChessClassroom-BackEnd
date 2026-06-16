@@ -240,4 +240,40 @@ static async getAlumnosPorClase(claseId: string) {
     fecha_inscripcion: item.fecha_inscripcion,
   }));
 }
+
+static async getMiembrosPorClase(claseId: string) {
+  // Obtener alumnos
+  const { data: alumnos, error: errorAlumnos } = await supabase
+    .from('clase_alumnos')
+    .select(`
+      usuarios!inner( id, nombre, apellidos, correo, foto )
+    `)
+    .eq('clase_id', claseId);
+
+  if (errorAlumnos) throw new Error(`Error al obtener alumnos: ${errorAlumnos.message}`);
+
+  // Obtener profesores
+  const { data: profesores, error: errorProfesores } = await supabase
+    .from('clase_profesores')
+    .select(`
+      usuarios!inner( id, nombre, apellidos, correo, foto )
+    `)
+    .eq('clase_id', claseId);
+
+  if (errorProfesores) throw new Error(`Error al obtener profesores: ${errorProfesores.message}`);
+
+  const mapear = (item: any, rol: string) => ({
+    id:        item.usuarios.id,
+    nombre:    item.usuarios.nombre,
+    apellidos: item.usuarios.apellidos,
+    correo:    item.usuarios.correo,
+    foto:      item.usuarios.foto,
+    rol,
+  });
+
+  return [
+    ...(profesores ?? []).map(p => mapear(p, 'profesor')),
+    ...(alumnos   ?? []).map(a => mapear(a, 'alumno')),
+  ];
+}
 }
