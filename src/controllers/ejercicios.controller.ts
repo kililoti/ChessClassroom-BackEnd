@@ -405,3 +405,66 @@ export const guardarTiempo = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const obtenerEntregasCalendario = async (req: Request, res: Response) => {
+  try {
+    const { claseId } = req.params;
+ 
+    // Carpetas de la clase
+    const { data: carpetas, error: errCarpetas } = await supabaseAdmin
+      .from('recursos_carpetas')
+      .select('id, nombre')
+      .eq('clase_id', claseId);
+ 
+    if (errCarpetas) throw errCarpetas;
+    if (!carpetas?.length) return res.json({ entregas: [] });
+ 
+    const carpetaMap  = new Map(carpetas.map(c => [c.id, c.nombre]));
+    const carpetaIds  = carpetas.map(c => c.id);
+ 
+    // Archivos de esas carpetas
+    const { data: archivos, error: errArchivos } = await supabaseAdmin
+      .from('recursos_archivos')
+      .select('id, carpeta_id')
+      .in('carpeta_id', carpetaIds);
+ 
+    if (errArchivos) throw errArchivos;
+    if (!archivos?.length) return res.json({ entregas: [] });
+ 
+    const archivoToCarpeta = new Map(archivos.map(a => [a.id, a.carpeta_id]));
+    const archivoIds       = archivos.map(a => a.id);
+ 
+    // Ejercicios con fecha_entrega
+    const { data: ejercicios, error: errEj } = await supabaseAdmin
+      .from('ejercicios')
+      .select('fecha_entrega, archivo_id')
+      .in('archivo_id', archivoIds)
+      .not('fecha_entrega', 'is', null)
+      .eq('asignado', true);
+ 
+    if (errEj) throw errEj;
+    if (!ejercicios?.length) return res.json({ entregas: [] });
+ 
+    // Agrupar por fecha — una carpeta solo aparece una vez por día
+    const porFecha = new Map<string, Set<string>>();
+ 
+    for (const ej of ejercicios) {
+      const fecha        = (ej.fecha_entrega as string).substring(0, 10);
+      const carpetaId    = archivoToCarpeta.get(ej.archivo_id);
+      const carpetaNombre = carpetaId ? carpetaMap.get(carpetaId) : null;
+      if (!carpetaNombre) continue;
+ 
+      if (!porFecha.has(fecha)) porFecha.set(fecha, new Set());
+      porFecha.get(fecha)!.add(carpetaNombre);
+    }
+ 
+    const entregas = Array.from(porFecha.entries()).map(([fecha, carpetasSet]) => ({
+      fecha,
+      carpetas: Array.from(carpetasSet),
+    }));
+ 
+    return res.json({ entregas });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
