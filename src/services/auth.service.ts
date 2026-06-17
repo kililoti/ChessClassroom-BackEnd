@@ -69,6 +69,7 @@ export class AuthService {
 
     return {
       token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
       usuario: perfilData
     };
   }
