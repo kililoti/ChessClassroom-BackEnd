@@ -18,6 +18,7 @@ import {
   eliminarEjercicio,
   eliminarEjerciciosEnBloque,
   toggleVisibilidadEjercicio,
+  obtenerEntregasCalendario,
 } from '../controllers/ejercicios.controller';
 
 const router = Router();
@@ -38,6 +39,7 @@ router.delete('/bloque',              verificarAutenticacion, eliminarEjercicios
 
 // PROFESOR
 router.post  ('/',                        verificarAutenticacion, upload.single('file'), subirEjercicio);
+router.get('/entregas-calendario/:claseId', verificarAutenticacion, obtenerEntregasCalendario);
 router.get   ('/:id',                     verificarAutenticacion, obtenerEjercicio);
 router.patch ('/:id/solucion',            verificarAutenticacion, actualizarSolucion);
 router.patch ('/:id/fechas',              verificarAutenticacion, actualizarFechas);
